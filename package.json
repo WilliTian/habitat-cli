@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "bun run ./src/cli.ts",
-    "check": "bunx tsc --noEmit"
+    "check": "tsc --noEmit"
   },
   "dependencies": {
     "commander": "^14.0.0"

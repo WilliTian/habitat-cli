@@ -1,7 +1,3 @@
+.env
+data/kepler-registration.json
 node_modules
-data/batteryBanks.json
-data/solarPanels.json
-data/researchLab.json
-data/rovers.json
-data/dartLaunchPlatform.json
-data/fabricator.json
