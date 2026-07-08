@@ -1,0 +1,4 @@
+.env
+data/kepler-registration.json
+.habitat/
+node_modules

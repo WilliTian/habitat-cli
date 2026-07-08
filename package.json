@@ -1,0 +1,22 @@
+{
+  "name": "habitat",
+  "version": "0.1.0",
+  "description": "A tiny Habitat command-line app.",
+  "type": "module",
+  "packageManager": "bun@1.1.0",
+  "bin": {
+    "habitat": "./bin/habitat"
+  },
+  "scripts": {
+    "start": "bun run ./src/cli.ts",
+    "check": "bun x tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^14.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2"
+  }
+}
+

@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SOURCE_PATH="${BASH_SOURCE[0]}"
+while [[ -L "$SOURCE_PATH" ]]; do
+  SOURCE_DIR="$(cd "$(dirname "$SOURCE_PATH")" && pwd)"
+  SOURCE_PATH="$(readlink "$SOURCE_PATH")"
+  [[ "$SOURCE_PATH" != /* ]] && SOURCE_PATH="$SOURCE_DIR/$SOURCE_PATH"
+done
+
+SCRIPT_DIR="$(cd "$(dirname "$SOURCE_PATH")" && pwd)"
+CLI_ENTRY="$SCRIPT_DIR/../src/cli.ts"
+BUN_BIN="${BUN_BIN:-}"
+
+if [[ -n "$BUN_BIN" && -x "$BUN_BIN" ]]; then
+  exec "$BUN_BIN" run "$CLI_ENTRY" "$@"
+fi
+
+if command -v bun >/dev/null 2>&1; then
+  exec bun run "$CLI_ENTRY" "$@"
+fi
+
+DEFAULT_BUN_BIN="${BUN_INSTALL:-$HOME/.bun}/bin/bun"
+if [[ -x "$DEFAULT_BUN_BIN" ]]; then
+  exec "$DEFAULT_BUN_BIN" run "$CLI_ENTRY" "$@"
+fi
+
+printf '%s\n' \
+  "Error: Bun was not found." \
+  "Install Bun, add it to PATH, or set BUN_BIN to the Bun executable." >&2
+exit 127
