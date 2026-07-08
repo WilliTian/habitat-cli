@@ -6,6 +6,7 @@ import {
   unregisterKeplerHabitat,
 } from "./kepler/index";
 import { registerModuleCommands } from "./modules/cli";
+import { registerTickCommands } from "./ticks/cli";
 
 const program = new Command();
 
@@ -53,6 +54,7 @@ program
   });
 
 registerModuleCommands(program);
+registerTickCommands(program);
 
 program
   .command("unregister")

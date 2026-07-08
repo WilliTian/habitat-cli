@@ -66,7 +66,7 @@ export async function registerKeplerHabitat(
     registeredAt: new Date().toISOString(),
   };
 
-  await replaceModulesFromStarterModules(response.starterModules);
+  await replaceModulesFromStarterModules(response.starterModules, response.blueprints);
   keplerHabitat.moduleCount = response.starterModules.length;
   await saveRegistrationState(keplerHabitat);
   return keplerHabitat;

@@ -6,10 +6,13 @@ import {
   findModuleByPrefix,
   formatModule,
   formatModuleSummary,
+  formatModuleStatusUpdate,
   listModules,
+  setModuleStatus,
   updateModuleByPrefix,
   updateModule,
 } from "./index";
+import { formatHabitatStatus, readHabitatStatus } from "../status/index";
 
 function collectOptionValues(value: string, values: string[]): string[] {
   values.push(value);
@@ -67,6 +70,24 @@ async function printModuleDetails(id: string): Promise<void> {
 
 export function registerModuleCommands(program: Command): void {
   const moduleCommand = program.command("module").description("Manage local habitat modules.");
+
+  moduleCommand
+    .command("status")
+    .description("Show local module states and power draw.")
+    .action(async () => {
+      const status = await readHabitatStatus();
+      console.log(formatHabitatStatus(status));
+    });
+
+  moduleCommand
+    .command("set-status")
+    .description("Set one local module runtime status.")
+    .argument("<module-id>", "Module id")
+    .argument("<status>", "Runtime status")
+    .action(async (moduleId: string, status: string) => {
+      const update = await setModuleStatus(moduleId, status);
+      console.log(formatModuleStatusUpdate(update));
+    });
 
   moduleCommand
     .command("list")
