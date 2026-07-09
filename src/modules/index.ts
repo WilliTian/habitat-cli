@@ -4,6 +4,12 @@ import type { ProductionBlueprint, StarterModuleInstance } from "../kepler/types
 import { loadModules, saveModules } from "./state";
 import type { HabitatModule, HabitatModuleCreateInput, HabitatModuleUpdateInput } from "./types";
 import { resolvePowerDrawKw } from "../ticks/index";
+import {
+  formatConstructionJobLines,
+  formatUsefulRuntimeAttributeLines,
+  readBatteryDiagnostics,
+  readModuleStatus,
+} from "./diagnostics";
 
 const validModuleStatuses = ["offline", "idle", "online", "active", "damaged"] as const;
 
@@ -230,7 +236,7 @@ export async function deleteModule(id: string): Promise<void> {
   await saveModules(nextModules);
 }
 
-export { loadModules } from "./state";
+export { loadModules, saveModules } from "./state";
 export { deleteModules } from "./state";
 
 export function formatModule(module: HabitatModule): string {
@@ -244,6 +250,9 @@ export function formatModule(module: HabitatModule): string {
   ];
 
   appendRuntimeStateLines(lines, module);
+  appendBatteryLines(lines, module);
+  lines.push(...formatConstructionJobLines(module));
+  lines.push(...formatUsefulRuntimeAttributeLines(module));
 
   lines.push(`runtimeAttributes: ${JSON.stringify(module.runtimeAttributes)}`);
   lines.push(`createdAt: ${module.createdAt}`);
@@ -258,10 +267,7 @@ export function formatModuleSummary(module: HabitatModule): string {
     `source: ${module.source}`,
   ];
 
-  const status = module.runtimeAttributes.status;
-  if (typeof status === "string" && status.trim().length > 0) {
-    lines.push(`status: ${status}`);
-  }
+  lines.push(`status: ${readModuleStatus(module)}`);
 
   return lines.join(" | ");
 }
@@ -323,19 +329,23 @@ function hydrateRuntimeAttributes(
 }
 
 function appendRuntimeStateLines(lines: string[], module: HabitatModule): void {
-  const { status, health, powerDrawKw } = module.runtimeAttributes;
+  lines.push(`status: ${readModuleStatus(module)}`);
+}
 
-  if (typeof status === "string" && status.trim().length > 0) {
-    lines.push(`status: ${status}`);
+function appendBatteryLines(lines: string[], module: HabitatModule): void {
+  const battery = readBatteryDiagnostics(module);
+
+  if (!battery) {
+    return;
   }
 
-  if (typeof health === "number") {
-    lines.push(`health: ${health}`);
+  lines.push(`batteryEnergyStoredKwh: ${formatNumber(battery.storedKwh)}`);
+
+  if (battery.capacityKwh !== null) {
+    lines.push(`batteryEnergyCapacityKwh: ${formatNumber(battery.capacityKwh)}`);
   }
 
-  if (typeof powerDrawKw === "number") {
-    lines.push(`powerDrawKw: ${powerDrawKw}`);
-  }
+  lines.push(`usableBatteryEnergyKwh: ${formatNumber(battery.usableKwh)}`);
 }
 
 function formatNumber(value: number): string {

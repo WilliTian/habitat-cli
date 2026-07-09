@@ -1,10 +1,14 @@
 import { Command } from "commander";
 import {
   formatKeplerHabitat,
+  formatUnregisterKeplerHabitatResult,
   readKeplerHabitatStatus,
   registerKeplerHabitat,
   unregisterKeplerHabitat,
 } from "./kepler/index";
+import { registerConstructCommands } from "./construct/cli";
+import { registerInventoryCommands } from "./inventory/cli";
+import { registerBlueprintCommands } from "./kepler/cli";
 import { registerModuleCommands } from "./modules/cli";
 import { registerTickCommands } from "./ticks/cli";
 
@@ -54,14 +58,17 @@ program
   });
 
 registerModuleCommands(program);
+registerInventoryCommands(program);
+registerBlueprintCommands(program);
+registerConstructCommands(program);
 registerTickCommands(program);
 
 program
   .command("unregister")
   .description("Delete the registered habitat from Kepler.")
   .action(async () => {
-    const keplerHabitat = await unregisterKeplerHabitat();
-    console.log(`Unregistered habitat "${keplerHabitat.displayName}".`);
+    const result = await unregisterKeplerHabitat();
+    console.log(formatUnregisterKeplerHabitatResult(result));
   });
 
 program.parseAsync().catch((error: unknown) => {

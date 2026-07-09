@@ -1,7 +1,7 @@
 export type HabitatStatusModule = {
   id: string;
   displayName: string;
-  state: string;
+  status: string;
   powerDrawKw: number;
 };
 

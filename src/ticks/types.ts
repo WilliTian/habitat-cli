@@ -3,6 +3,7 @@ import type { HabitatModule } from "../modules/types";
 export type PowerTickInput = {
   modules: HabitatModule[];
   tickCount: number;
+  now?: string;
 };
 
 export type BatteryDrain = {

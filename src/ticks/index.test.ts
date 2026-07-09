@@ -146,6 +146,100 @@ describe("applyPowerTicks", () => {
       "Tick count must be a positive integer.",
     );
   });
+
+  test("advances active construction jobs without creating the output module early", () => {
+    const modules = [
+      moduleFixture({
+        id: "fabricator",
+        displayName: "Workshop Fabricator",
+        runtimeAttributes: {
+          status: "active",
+          powerDrawKw: {
+            offline: 0,
+            online: 1,
+            active: 8,
+          },
+          constructionJob: {
+            blueprintId: "small-solar-array",
+            outputModuleId: "future-module-1",
+            displayName: "Small Solar Array",
+            buildTicks: 180,
+            remainingTicks: 120,
+            futureModule: {
+              blueprintId: "small-solar-array",
+              displayName: "Small Solar Array",
+              runtimeAttributes: {
+                status: "online",
+                powerDrawKw: 0,
+              },
+              capabilities: ["power-generation"],
+            },
+          },
+        },
+      }),
+    ];
+
+    const result = applyPowerTicks({ modules, tickCount: 30 });
+    const [fabricator] = result.modules;
+
+    expect(fabricator.runtimeAttributes.constructionJob).toMatchObject({
+      outputModuleId: "future-module-1",
+      remainingTicks: 90,
+    });
+    expect(result.modules).toHaveLength(1);
+  });
+
+  test("completes construction jobs when enough ticks pass", () => {
+    const modules = [
+      moduleFixture({
+        id: "fabricator",
+        displayName: "Workshop Fabricator",
+        runtimeAttributes: {
+          status: "active",
+          powerDrawKw: {
+            offline: 0,
+            online: 1,
+            active: 8,
+          },
+          constructionJob: {
+            blueprintId: "small-solar-array",
+            outputModuleId: "future-module-1",
+            displayName: "Small Solar Array",
+            buildTicks: 180,
+            remainingTicks: 20,
+            futureModule: {
+              blueprintId: "small-solar-array",
+              displayName: "Small Solar Array",
+              runtimeAttributes: {
+                status: "online",
+                powerDrawKw: 0,
+                generationKw: 5,
+              },
+              capabilities: ["power-generation"],
+            },
+          },
+        },
+      }),
+    ];
+
+    const result = applyPowerTicks({ modules, tickCount: 20 });
+    const [fabricator, outputModule] = result.modules;
+
+    expect(fabricator.runtimeAttributes.status).toBe("online");
+    expect(fabricator.runtimeAttributes.constructionJob).toBeUndefined();
+    expect(outputModule).toMatchObject({
+      id: "future-module-1",
+      blueprintId: "small-solar-array",
+      displayName: "Small Solar Array",
+      runtimeAttributes: {
+        status: "online",
+        powerDrawKw: 0,
+        generationKw: 5,
+      },
+      capabilities: ["power-generation"],
+      source: "local",
+    });
+  });
 });
 
 describe("runPowerTicks", () => {

@@ -15,6 +15,7 @@ export type ProductionBlueprint = {
   status: "draft" | "published";
   output: Record<string, unknown>;
   inputs: Record<string, unknown>;
+  productionCost?: Record<string, unknown>;
   buildTicks: number;
   repeatable: boolean;
   prerequisites?: string[];
@@ -44,14 +45,40 @@ export type HabitatRegistrationInput = {
 
 export type HabitatRegistrationResponse = {
   habitatId: string;
+  habitat?: Habitat;
   // Returned starter module instances become the initial local module state.
   starterModules: StarterModuleInstance[];
-  // Returned blueprint definitions stay as the published catalog for later builds.
+  // Returned blueprint definitions are used to hydrate local starter modules.
   blueprints: ProductionBlueprint[];
 };
 
 export type HabitatResponse = {
   habitat: Habitat;
+};
+
+export type BlueprintCatalogResponse = {
+  catalogVersion: string;
+  blueprints: ProductionBlueprint[];
+};
+
+export type BlueprintResponse = {
+  blueprint: ProductionBlueprint;
+};
+
+export type IndustryResource = {
+  id: string;
+  resourceType: string;
+  displayName: string;
+  kind: string;
+  rarity: string;
+  amount?: number;
+  description?: string;
+  unit?: string;
+};
+
+export type ResourceCatalogResponse = {
+  catalogVersion: string;
+  resources: IndustryResource[];
 };
 
 export type KeplerHabitatState = {
@@ -60,10 +87,13 @@ export type KeplerHabitatState = {
   habitatId: string;
   // Persist the starter module instances exactly as Kepler returns them.
   starterModules: StarterModuleInstance[];
-  // Persist the published blueprint catalog alongside the habitat state.
-  blueprints: ProductionBlueprint[];
   moduleCount?: number;
   habitat?: Habitat;
   registeredAt: string;
   refreshedAt?: string;
+};
+
+export type UnregisterKeplerHabitatResult = {
+  keplerHabitat: KeplerHabitatState;
+  remoteHabitatDeleted: boolean;
 };

@@ -8,6 +8,7 @@ function moduleFixture(input: {
   displayName: string;
   status: string;
   powerDrawKw?: number | Record<string, number>;
+  runtimeAttributes?: Record<string, unknown>;
 }): HabitatModule {
   return {
     id: input.id,
@@ -17,6 +18,7 @@ function moduleFixture(input: {
     runtimeAttributes: {
       status: input.status,
       ...(input.powerDrawKw !== undefined ? { powerDrawKw: input.powerDrawKw } : {}),
+      ...(input.runtimeAttributes ?? {}),
     },
     capabilities: [],
     source: "starter",
@@ -67,19 +69,19 @@ describe("habitat status", () => {
       {
         id: "command",
         displayName: "Command Module",
-        state: "active",
+        status: "active",
         powerDrawKw: 2,
       },
       {
         id: "fabricator",
         displayName: "Workshop Fabricator",
-        state: "online",
+        status: "online",
         powerDrawKw: 1,
       },
       {
         id: "cache",
         displayName: "Supply Cache",
-        state: "offline",
+        status: "offline",
         powerDrawKw: 0,
       },
     ]);
@@ -99,7 +101,7 @@ describe("habitat status", () => {
       ]),
     );
 
-    expect(output).toContain("Command Module | state: active | powerDrawKw: 3.6");
+    expect(output).toContain("Command Module | status: active | powerDrawKw: 3.6");
     expect(output).toContain("totalPowerDrawKw: 3.6");
     expect(output).toContain("energyDemandPerTickKwh: 0.001");
     expect(output).toContain("tickComparison: habitat tick 10 drains about 0.01 kWh");

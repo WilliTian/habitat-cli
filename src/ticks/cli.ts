@@ -49,7 +49,11 @@ export function formatPowerTickSummary(summary: PowerTickSummary): string {
   ];
 
   if (summary.batteryDrains.length === 0) {
-    lines.push("batteries: none drained");
+    lines.push(
+      summary.unmetEnergyKwh > 0
+        ? "batteries: no usable battery energy available"
+        : "batteries: none drained",
+    );
   }
 
   for (const drain of summary.batteryDrains) {

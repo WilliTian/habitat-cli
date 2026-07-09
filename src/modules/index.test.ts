@@ -141,6 +141,95 @@ describe("module runtime state", () => {
     expect(formatModuleSummary(module)).toContain("status: active");
   });
 
+  test("formats active construction job details for fabricators", () => {
+    const module = {
+      id: "workshop_fabricator_1",
+      blueprintId: "workshop-fabricator",
+      displayName: "Workshop Fabricator",
+      connectedTo: [],
+      runtimeAttributes: {
+        status: "online",
+        powerDrawKw: {
+          offline: 0,
+          online: 1,
+          active: 8,
+        },
+        constructionJob: {
+          blueprintId: "small-solar-array",
+          outputModuleId: "small_solar_array_1",
+          displayName: "Small Solar Array",
+          buildTicks: 180,
+          remainingTicks: 120,
+          futureModule: {
+            blueprintId: "small-solar-array",
+            displayName: "Small Solar Array",
+            runtimeAttributes: {
+              status: "online",
+              generationKw: 5,
+            },
+            capabilities: ["power-generation"],
+          },
+        },
+      },
+      capabilities: ["basic-fabrication"],
+      source: "local" as const,
+      createdAt: "2026-07-08T00:00:00.000Z",
+      updatedAt: "2026-07-08T00:00:00.000Z",
+    };
+
+    expect(formatModuleSummary(module)).toContain("status: online");
+    expect(formatModule(module)).toContain("activeConstructionJob:");
+    expect(formatModule(module)).toContain("blueprintId: small-solar-array");
+    expect(formatModule(module)).toContain("outputModuleId: small_solar_array_1");
+    expect(formatModule(module)).toContain("remainingTicks: 120");
+    expect(formatModule(module)).toContain("buildTicks: 180");
+  });
+
+  test("formats battery details for battery modules", () => {
+    const module = {
+      id: "basic_battery_1",
+      blueprintId: "basic-battery",
+      displayName: "Basic Battery",
+      connectedTo: [],
+      runtimeAttributes: {
+        status: "online",
+        currentEnergyKwh: 320,
+        energyStorageKwh: 500,
+      },
+      capabilities: ["power-storage"],
+      source: "local" as const,
+      createdAt: "2026-07-08T00:00:00.000Z",
+      updatedAt: "2026-07-08T00:00:00.000Z",
+    };
+
+    expect(formatModule(module)).toContain("batteryEnergyStoredKwh: 320");
+    expect(formatModule(module)).toContain("batteryEnergyCapacityKwh: 500");
+    expect(formatModule(module)).toContain("usableBatteryEnergyKwh: 320");
+  });
+
+  test("formats useful runtime attributes for completed solar arrays", () => {
+    const module = {
+      id: "small_solar_array_1",
+      blueprintId: "small-solar-array",
+      displayName: "Small Solar Array",
+      connectedTo: [],
+      runtimeAttributes: {
+        status: "online",
+        powerDrawKw: 0,
+        generationKw: 5,
+        health: 100,
+      },
+      capabilities: ["power-generation"],
+      source: "local" as const,
+      createdAt: "2026-07-08T00:00:00.000Z",
+      updatedAt: "2026-07-08T00:00:00.000Z",
+    };
+
+    expect(formatModule(module)).toContain("status: online");
+    expect(formatModule(module)).toContain("generationKw: 5");
+    expect(formatModule(module)).toContain("capabilities: power-generation");
+  });
+
   test("formats Kepler module ids with the meaningful suffix", () => {
     const module = {
       id: "habitat_f6e59444_2f34_4e6c_bc33_1cd9b4545c07_basic_suitport_1",

@@ -1,5 +1,6 @@
 import { loadModules } from "../modules/state";
 import type { HabitatModule } from "../modules/types";
+import { readModuleStatus } from "../modules/diagnostics";
 import { resolvePowerDrawKw } from "../ticks/index";
 import type { HabitatStatus } from "./types";
 
@@ -24,7 +25,7 @@ export function buildHabitatStatus(modules: HabitatModule[]): HabitatStatus {
   const statusModules = modules.map((module) => ({
     id: module.id,
     displayName: module.displayName,
-    state: getModuleState(module),
+    status: readModuleStatus(module),
     powerDrawKw: resolvePowerDrawKw(module),
   }));
 
@@ -44,7 +45,7 @@ export function formatHabitatStatus(status: HabitatStatus): string {
   const lines = status.modules.map((module) =>
     [
       module.displayName,
-      `state: ${module.state}`,
+      `status: ${module.status}`,
       `powerDrawKw: ${formatNumber(module.powerDrawKw)}`,
     ].join(" | "),
   );
@@ -63,12 +64,6 @@ export function formatHabitatStatus(status: HabitatStatus): string {
 
   return lines.join("\n");
 }
-
-function getModuleState(module: HabitatModule): string {
-  const state = module.runtimeAttributes.status;
-  return typeof state === "string" && state.trim().length > 0 ? state : "unknown";
-}
-
 function formatNumber(value: number): string {
   return Number(value.toFixed(6)).toString();
 }
