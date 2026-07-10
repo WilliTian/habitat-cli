@@ -321,12 +321,22 @@ describe("applyPowerTicks", () => {
       tickCount: 3600,
       solarIrradiance: {
         wPerM2: 1,
-        condition: "clear",
+        condition: "dust",
       },
     });
 
+    expect(result.summary.solarIrradianceWPerM2).toBe(1);
+    expect(result.summary.solarCondition).toBe("dust");
     expect(result.summary.netPowerKw).toBe(-3);
     expect(result.summary.energyChargedKwh).toBe(2);
+    expect(result.summary.batteryCharges).toHaveLength(1);
+    expect(result.summary.batteryCharges[0]).toMatchObject({
+      moduleId: "battery",
+      displayName: "Battery",
+      beforeEnergyStoredKwh: 10,
+      afterEnergyStoredKwh: 12,
+      chargedKwh: 2,
+    });
     expect(result.modules[2].runtimeAttributes.energyStoredKwh).toBe(12);
   });
 

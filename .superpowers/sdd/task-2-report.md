@@ -23,3 +23,25 @@ Implemented the Task 2 contract changes in `src/ticks` only.
 
 - I did not modify files outside the task-owned `src/ticks/types.ts` and `src/ticks/index.test.ts`.
 - The repository already contained unrelated modified and untracked files, which I left untouched.
+
+## Task 2 Fix Follow-up
+
+Updated the solar surplus test so it no longer only exercises `condition: "clear"`.
+
+### What changed
+
+- Switched the surplus-charging case to `condition: "dust"`.
+- Added runtime assertions for `summary.solarIrradianceWPerM2` and `summary.solarCondition`.
+- Added runtime assertions for the `summary.batteryCharges` entry so the battery-charge tracking shape is covered directly.
+
+### Verification
+
+- Ran `/home/willi/.bun/bin/bun test src/ticks/index.test.ts`.
+- Result: the new assertions are in place, but the file still fails against the current `src/ticks/index.ts` implementation because the solar summary fields are not populated yet.
+- Ran `/home/willi/.bun/bin/bun x tsc --noEmit`.
+- Result: TypeScript still reports `src/ticks/index.ts` as missing the solar summary fields required by `PowerTickSummary`.
+
+### Conclusion
+
+- The test coverage gap identified in review is fixed.
+- The remaining failure is the existing implementation gap in the tick simulation, not the new assertions.
