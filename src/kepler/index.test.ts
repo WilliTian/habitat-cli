@@ -9,6 +9,7 @@ import {
   listBlueprints,
   listResources,
   readKeplerHabitatStatus,
+  readSolarIrradiance,
   registerKeplerHabitat,
   unregisterKeplerHabitat,
 } from "./index";
@@ -20,6 +21,7 @@ import type {
   ResourceCatalogResponse,
   ProductionBlueprint,
   IndustryResource,
+  SolarIrradianceResponse,
 } from "./types";
 
 function blueprintFixture(input: {
@@ -234,6 +236,40 @@ describe("resource catalog", () => {
         "water-ice       Water Ice      volatile   50       common",
       ].join("\n"),
     );
+  });
+});
+
+describe("solar irradiance", () => {
+  test("reads solar irradiance from the Kepler world endpoint", async () => {
+    const requests: string[] = [];
+
+    const result = await readSolarIrradiance({
+      requestKeplerJson: async (path) => {
+        requests.push(path);
+        return {
+          solarIrradiance: {
+            wPerM2: 900,
+            condition: "clear",
+          },
+        } satisfies SolarIrradianceResponse;
+      },
+    });
+
+    expect(result).toEqual({
+      wPerM2: 900,
+      condition: "clear",
+    });
+    expect(requests).toEqual(["/world/solar-irradiance"]);
+  });
+
+  test("propagates Kepler request failures when reading solar irradiance", async () => {
+    await expect(
+      readSolarIrradiance({
+        requestKeplerJson: async () => {
+          throw new Error("Kepler request failed with 503: unavailable");
+        },
+      }),
+    ).rejects.toThrow("Kepler request failed with 503: unavailable");
   });
 });
 

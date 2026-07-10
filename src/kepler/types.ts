@@ -81,6 +81,17 @@ export type ResourceCatalogResponse = {
   resources: IndustryResource[];
 };
 
+export type SolarCondition = "clear" | "dust" | "storm" | "night";
+
+export type SolarIrradianceReading = {
+  wPerM2: number;
+  condition: SolarCondition;
+};
+
+export type SolarIrradianceResponse = {
+  solarIrradiance: SolarIrradianceReading;
+};
+
 export type KeplerHabitatState = {
   displayName: string;
   habitatUuid: string;

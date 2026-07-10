@@ -17,11 +17,11 @@ import type {
   KeplerHabitatState,
   ProductionBlueprint,
   ResourceCatalogResponse,
+  SolarIrradianceReading,
+  SolarIrradianceResponse,
   UnregisterKeplerHabitatResult,
 } from "./types";
-import {
-  deleteModules,
-} from "../modules/index";
+import { deleteModules } from "../modules/index";
 import { loadModules, replaceModulesFromStarterModules } from "../modules/index";
 
 function validateName(value: string, fieldName: string): string {
@@ -49,6 +49,10 @@ type BlueprintCatalogDependencies = {
 
 type ResourceCatalogDependencies = BlueprintCatalogDependencies & {
   loadInventory: typeof loadInventory;
+};
+
+type SolarIrradianceDependencies = {
+  requestKeplerJson: typeof requestKeplerJson;
 };
 
 type ReadKeplerHabitatStatusDependencies = {
@@ -85,6 +89,10 @@ const defaultResourceCatalogDependencies: ResourceCatalogDependencies = {
   loadInventory,
 };
 
+const defaultSolarIrradianceDependencies: SolarIrradianceDependencies = {
+  requestKeplerJson,
+};
+
 const defaultReadKeplerHabitatStatusDependencies: ReadKeplerHabitatStatusDependencies = {
   loadRegistrationState,
   requestKeplerJson,
@@ -108,6 +116,9 @@ export type {
   KeplerHabitatState,
   ProductionBlueprint,
   ResourceCatalogResponse,
+  SolarCondition,
+  SolarIrradianceReading,
+  SolarIrradianceResponse,
   StarterModuleInstance,
   UnregisterKeplerHabitatResult,
 } from "./types";
@@ -245,6 +256,17 @@ export async function listResources(
   });
   const inventory = await dependencies.loadInventory();
   return mergeResourcesWithInventory(response.resources, inventory);
+}
+
+export async function readSolarIrradiance(
+  dependencies: SolarIrradianceDependencies = defaultSolarIrradianceDependencies,
+): Promise<SolarIrradianceReading> {
+  const response = await dependencies.requestKeplerJson<SolarIrradianceResponse>("/world/solar-irradiance", {
+    method: "GET",
+    expectedStatus: 200,
+  });
+
+  return response.solarIrradiance;
 }
 
 export function formatKeplerHabitat(keplerHabitat: KeplerHabitatState): string {
