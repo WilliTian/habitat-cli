@@ -1,24 +1,18 @@
 import { describe, expect, test } from "bun:test";
 
-import { registerBlueprintCommands } from "./index";
-import {
-  formatBlueprint,
-  formatBlueprintTable,
-  formatBlueprintSummary,
-  formatKeplerHabitat,
-  formatResourceTable,
-  formatSolarIrradianceStatus,
-  formatUnregisterKeplerHabitatResult,
-} from "./format";
 import {
   findBlueprint,
+  formatBlueprint,
+  formatBlueprintSummary,
+  formatUnregisterKeplerHabitatResult,
+  formatResourceTable,
   listBlueprints,
   listResources,
   readKeplerHabitatStatus,
   readSolarIrradiance,
   registerKeplerHabitat,
   unregisterKeplerHabitat,
-} from "./service";
+} from "./index";
 import { loadRegistrationState, saveRegistrationState } from "./state";
 import type {
   BlueprintCatalogResponse,
@@ -69,24 +63,6 @@ function resourceFixture(input: {
     ...(input.amount !== undefined ? { amount: input.amount } : {}),
   };
 }
-
-describe("kepler public structure", () => {
-  test("exposes service and format entrypoints from focused files", () => {
-    expect(typeof registerBlueprintCommands).toBe("function");
-    expect(typeof registerKeplerHabitat).toBe("function");
-    expect(typeof readKeplerHabitatStatus).toBe("function");
-    expect(typeof unregisterKeplerHabitat).toBe("function");
-    expect(typeof listBlueprints).toBe("function");
-    expect(typeof findBlueprint).toBe("function");
-    expect(typeof listResources).toBe("function");
-    expect(typeof readSolarIrradiance).toBe("function");
-    expect(typeof formatKeplerHabitat).toBe("function");
-    expect(typeof formatBlueprint).toBe("function");
-    expect(typeof formatBlueprintTable).toBe("function");
-    expect(typeof formatResourceTable).toBe("function");
-    expect(typeof formatSolarIrradianceStatus).toBe("function");
-  });
-});
 
 describe("blueprint catalog", () => {
   test("lists blueprints from the Kepler server", async () => {
