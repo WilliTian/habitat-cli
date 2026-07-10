@@ -1,8 +1,11 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import { Command } from "commander";
 
-import { registerBlueprintCommands } from "./cli";
-import * as kepler from "./index";
+import {
+  formatSolarIrradianceStatus,
+} from "./format";
+import { registerBlueprintCommands } from "./index";
+import * as keplerService from "./service";
 
 describe("blueprint cli", () => {
   test("registers blueprint list command", () => {
@@ -30,7 +33,7 @@ describe("blueprint cli", () => {
   test("prints blueprint list as a two-column table", async () => {
     const program = new Command();
     const logSpy = spyOn(console, "log").mockImplementation(() => {});
-    const listBlueprintsSpy = spyOn(kepler, "listBlueprints").mockResolvedValue([
+    const listBlueprintsSpy = spyOn(keplerService, "listBlueprints").mockResolvedValue([
       {
         id: "survey-rover",
         blueprintId: "survey-rover",
@@ -89,7 +92,7 @@ describe("resource cli", () => {
   test("prints resource list as a four-column table", async () => {
     const program = new Command();
     const logSpy = spyOn(console, "log").mockImplementation(() => {});
-    const listResourcesSpy = spyOn(kepler, "listResources").mockResolvedValue([
+    const listResourcesSpy = spyOn(keplerService, "listResources").mockResolvedValue([
       {
         id: "water-ice",
         resourceType: "water-ice",
@@ -128,7 +131,7 @@ describe("resource cli", () => {
 
 describe("solar cli", () => {
   test("formats solar status in beginner-friendly language", () => {
-    const output = kepler.formatSolarIrradianceStatus({
+    const output = formatSolarIrradianceStatus({
       wPerM2: 900,
       condition: "clear",
     });
@@ -156,7 +159,7 @@ describe("solar cli", () => {
   test("prints current solar status", async () => {
     const program = new Command();
     const logSpy = spyOn(console, "log").mockImplementation(() => {});
-    const readSolarIrradianceSpy = spyOn(kepler, "readSolarIrradiance").mockResolvedValue({
+    const readSolarIrradianceSpy = spyOn(keplerService, "readSolarIrradiance").mockResolvedValue({
       wPerM2: 250,
       condition: "dust",
     });

@@ -2,13 +2,15 @@ import { Command } from "commander";
 import {
   formatKeplerHabitat,
   formatUnregisterKeplerHabitatResult,
+} from "./kepler/format";
+import { registerConstructCommands } from "./construct/cli";
+import { registerInventoryCommands } from "./inventory/cli";
+import { registerBlueprintCommands } from "./kepler";
+import {
   readKeplerHabitatStatus,
   registerKeplerHabitat,
   unregisterKeplerHabitat,
-} from "./kepler/index";
-import { registerConstructCommands } from "./construct/cli";
-import { registerInventoryCommands } from "./inventory/cli";
-import { registerBlueprintCommands } from "./kepler/cli";
+} from "./kepler/service";
 import { registerModuleCommands } from "./modules/cli";
 import { registerTickCommands } from "./ticks/cli";
 
