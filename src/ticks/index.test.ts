@@ -37,7 +37,7 @@ describe("applyPowerTicks", () => {
         id: "battery",
         displayName: "Battery",
         runtimeAttributes: {
-          status: "active",
+          status: "online",
           energyStoredKwh: 10,
           energyCapacityKwh: 20,
         },
@@ -256,7 +256,7 @@ describe("applyPowerTicks", () => {
         displayName: "Small Solar Array",
         runtimeAttributes: {
           status: "online",
-          generationKw: 4,
+          powerGenerationKw: 8,
         },
         capabilities: ["power-generation"],
       }),
@@ -264,7 +264,7 @@ describe("applyPowerTicks", () => {
         id: "battery",
         displayName: "Battery",
         runtimeAttributes: {
-          status: "active",
+          status: "online",
           energyStoredKwh: 10,
           energyCapacityKwh: 20,
         },
@@ -275,25 +275,27 @@ describe("applyPowerTicks", () => {
       modules,
       tickCount: 3600,
       solarIrradiance: {
-        wPerM2: 1,
-        condition: "clear",
+        wPerM2: 450,
+        condition: "dust",
       },
     });
 
     expect(result.summary.activePowerDrawKw).toBe(5);
-    expect(result.summary.solarGenerationKw).toBe(4);
-    expect(result.summary.netPowerKw).toBe(1);
-    expect(result.modules[2].runtimeAttributes.energyStoredKwh).toBe(9);
+    expect(result.summary.solarIrradianceWPerM2).toBe(450);
+    expect(result.summary.solarCondition).toBe("dust");
+    expect(result.summary.solarGenerationKw).toBe(2);
+    expect(result.summary.netPowerKw).toBe(3);
+    expect(result.modules[2].runtimeAttributes.energyStoredKwh).toBe(7);
   });
 
-  test("charges batteries when solar generation exceeds load", () => {
+  test("keeps an empty battery empty when solar does not exceed load", () => {
     const modules = [
       moduleFixture({
         id: "load",
         displayName: "Load",
         runtimeAttributes: {
           status: "active",
-          powerDrawKw: 2,
+          powerDrawKw: 8.5,
         },
       }),
       moduleFixture({
@@ -301,7 +303,48 @@ describe("applyPowerTicks", () => {
         displayName: "Small Solar Array",
         runtimeAttributes: {
           status: "online",
-          generationKw: 5,
+          powerGenerationKw: 12,
+        },
+        capabilities: ["solar-generation"],
+      }),
+      moduleFixture({
+        id: "battery",
+        displayName: "Battery",
+        runtimeAttributes: {
+          status: "online",
+          currentEnergyKwh: 0,
+          energyStorageKwh: 500,
+        },
+      }),
+    ];
+
+    const result = applyPowerTicks({
+      modules,
+      tickCount: 1,
+      solarIrradiance: {
+        wPerM2: 900,
+        condition: "clear",
+      },
+    });
+
+    expect(result.summary.solarGenerationKw).toBe(6);
+    expect(result.summary.grossEnergyDemandKwh).toBeCloseTo(8.5 / 3600);
+    expect(result.summary.energyDemandKwh).toBeCloseTo(2.5 / 3600);
+    expect(result.summary.energyChargedKwh).toBe(0);
+    expect(result.summary.energyDrainedKwh).toBe(0);
+    expect(result.summary.unmetEnergyKwh).toBeCloseTo(2.5 / 3600);
+    expect(result.summary.solarChargingStatus).toBe("solar power was used by active modules");
+    expect(result.modules[2].runtimeAttributes.currentEnergyKwh).toBe(0);
+  });
+
+  test("charges batteries from one hour of clear solar generation", () => {
+    const modules = [
+      moduleFixture({
+        id: "solar",
+        displayName: "Small Solar Array",
+        runtimeAttributes: {
+          status: "online",
+          powerGenerationKw: 12,
         },
         capabilities: ["power-generation"],
       }),
@@ -309,9 +352,9 @@ describe("applyPowerTicks", () => {
         id: "battery",
         displayName: "Battery",
         runtimeAttributes: {
-          status: "active",
+          status: "online",
           energyStoredKwh: 10,
-          energyCapacityKwh: 12,
+          energyCapacityKwh: 20,
         },
       }),
     ];
@@ -320,24 +363,140 @@ describe("applyPowerTicks", () => {
       modules,
       tickCount: 3600,
       solarIrradiance: {
-        wPerM2: 1,
-        condition: "dust",
+        wPerM2: 900,
+        condition: "clear",
       },
     });
 
-    expect(result.summary.solarIrradianceWPerM2).toBe(1);
-    expect(result.summary.solarCondition).toBe("dust");
-    expect(result.summary.netPowerKw).toBe(-3);
-    expect(result.summary.energyChargedKwh).toBe(2);
+    expect(result.summary.solarIrradianceWPerM2).toBe(900);
+    expect(result.summary.solarCondition).toBe("clear");
+    expect(result.summary.solarGenerationKw).toBe(6);
+    expect(result.summary.solarEnergyGeneratedKwh).toBe(6);
+    expect(result.summary.netPowerKw).toBe(-6);
+    expect(result.summary.energyChargedKwh).toBe(6);
+    expect(result.summary.solarChargingStatus).toBe("charged 6 kWh into batteries");
     expect(result.summary.batteryCharges).toHaveLength(1);
     expect(result.summary.batteryCharges[0]).toMatchObject({
       moduleId: "battery",
       displayName: "Battery",
       beforeEnergyStoredKwh: 10,
-      afterEnergyStoredKwh: 12,
-      chargedKwh: 2,
+      afterEnergyStoredKwh: 16,
+      chargedKwh: 6,
     });
-    expect(result.modules[2].runtimeAttributes.energyStoredKwh).toBe(12);
+    expect(result.modules[1].runtimeAttributes.energyStoredKwh).toBe(16);
+  });
+
+  test("recognizes Kepler solar-generation modules for battery charging", () => {
+    const modules = [
+      moduleFixture({
+        id: "solar",
+        displayName: "Small Solar Array",
+        runtimeAttributes: {
+          status: "online",
+          powerGenerationKw: 12,
+        },
+        capabilities: ["solar-generation"],
+      }),
+      moduleFixture({
+        id: "battery",
+        displayName: "Battery",
+        runtimeAttributes: {
+          status: "online",
+          currentEnergyKwh: 10,
+          energyStorageKwh: 20,
+        },
+      }),
+    ];
+
+    const result = applyPowerTicks({
+      modules,
+      tickCount: 3600,
+      solarIrradiance: {
+        wPerM2: 900,
+        condition: "clear",
+      },
+    });
+
+    expect(result.summary.solarGenerationKw).toBe(6);
+    expect(result.summary.energyChargedKwh).toBe(6);
+    expect(result.modules[1].runtimeAttributes.currentEnergyKwh).toBe(16);
+  });
+
+  test("reports why solar charging did not happen without online batteries", () => {
+    const modules = [
+      moduleFixture({
+        id: "solar",
+        displayName: "Small Solar Array",
+        runtimeAttributes: {
+          status: "online",
+          powerGenerationKw: 12,
+        },
+        capabilities: ["power-generation"],
+      }),
+      moduleFixture({
+        id: "battery",
+        displayName: "Battery",
+        runtimeAttributes: {
+          status: "offline",
+          currentEnergyKwh: 10,
+          energyStorageKwh: 20,
+        },
+      }),
+    ];
+
+    const result = applyPowerTicks({
+      modules,
+      tickCount: 3600,
+      solarIrradiance: {
+        wPerM2: 900,
+        condition: "clear",
+      },
+    });
+
+    expect(result.summary.solarGenerationKw).toBe(6);
+    expect(result.summary.solarEnergyGeneratedKwh).toBe(6);
+    expect(result.summary.energyChargedKwh).toBe(0);
+    expect(result.summary.solarChargingStatus).toBe("no online batteries can accept charge");
+    expect(result.modules[1].runtimeAttributes.currentEnergyKwh).toBe(10);
+  });
+
+  test("reports why solar charging did not happen without online solar modules", () => {
+    const modules = [
+      moduleFixture({
+        id: "solar",
+        displayName: "Small Solar Array",
+        runtimeAttributes: {
+          status: "offline",
+          powerGenerationKw: 12,
+        },
+        capabilities: ["power-generation"],
+      }),
+      moduleFixture({
+        id: "battery",
+        displayName: "Battery",
+        runtimeAttributes: {
+          status: "online",
+          currentEnergyKwh: 10,
+          energyStorageKwh: 20,
+        },
+      }),
+    ];
+
+    const result = applyPowerTicks({
+      modules,
+      tickCount: 3600,
+      solarIrradiance: {
+        wPerM2: 900,
+        condition: "clear",
+      },
+    });
+
+    expect(result.summary.solarGenerationKw).toBe(0);
+    expect(result.summary.energyChargedKwh).toBe(0);
+    expect(result.summary.solarChargingStatus).toBe(
+      "no online solar modules are generating power",
+    );
+    expect(result.modules[1].runtimeAttributes.currentEnergyKwh).toBe(10);
   });
 
   test("treats night as zero solar output", () => {
@@ -365,14 +524,14 @@ describe("applyPowerTicks", () => {
     expect(result.summary.solarGenerationKw).toBe(0);
   });
 
-  test("does not overcharge batteries past capacity", () => {
+  test("treats zero irradiance as no solar charge", () => {
     const modules = [
       moduleFixture({
         id: "solar",
         displayName: "Small Solar Array",
         runtimeAttributes: {
           status: "online",
-          generationKw: 10,
+          generationKw: 12,
         },
         capabilities: ["power-generation"],
       }),
@@ -380,7 +539,44 @@ describe("applyPowerTicks", () => {
         id: "battery",
         displayName: "Battery",
         runtimeAttributes: {
-          status: "active",
+          status: "online",
+          currentEnergyKwh: 10,
+          energyStorageKwh: 20,
+        },
+      }),
+    ];
+
+    const result = applyPowerTicks({
+      modules,
+      tickCount: 3600,
+      solarIrradiance: {
+        wPerM2: 0,
+        condition: "clear",
+      },
+    });
+
+    expect(result.summary.solarGenerationKw).toBe(0);
+    expect(result.summary.solarChargingStatus).toBe("no sunlight is available");
+    expect(result.summary.energyChargedKwh).toBe(0);
+    expect(result.modules[1].runtimeAttributes.currentEnergyKwh).toBe(10);
+  });
+
+  test("does not overcharge batteries past capacity", () => {
+    const modules = [
+      moduleFixture({
+        id: "solar",
+        displayName: "Small Solar Array",
+        runtimeAttributes: {
+          status: "online",
+          powerGenerationKw: 10,
+        },
+        capabilities: ["power-generation"],
+      }),
+      moduleFixture({
+        id: "battery",
+        displayName: "Battery",
+        runtimeAttributes: {
+          status: "online",
           currentEnergyKwh: 499,
           energyStorageKwh: 500,
         },
@@ -391,7 +587,7 @@ describe("applyPowerTicks", () => {
       modules,
       tickCount: 3600,
       solarIrradiance: {
-        wPerM2: 1,
+        wPerM2: 900,
         condition: "clear",
       },
     });
@@ -402,7 +598,7 @@ describe("applyPowerTicks", () => {
 });
 
 describe("runPowerTicks", () => {
-  test("loads modules, applies ticks, and saves updated modules", async () => {
+  test("loads modules, reads solar irradiance, applies ticks, and saves updated modules", async () => {
     const savedModules: HabitatModule[][] = [];
     const modules = [
       moduleFixture({
@@ -410,28 +606,43 @@ describe("runPowerTicks", () => {
         displayName: "Load",
         runtimeAttributes: {
           status: "active",
-          powerDrawKw: 3.6,
+          powerDrawKw: 5,
         },
+      }),
+      moduleFixture({
+        id: "solar",
+        displayName: "Small Solar Array",
+        runtimeAttributes: {
+          status: "online",
+          powerGenerationKw: 8,
+        },
+        capabilities: ["power-generation"],
       }),
       moduleFixture({
         id: "battery",
         displayName: "Battery",
         runtimeAttributes: {
-          status: "active",
+          status: "online",
           energyStoredKwh: 10,
+          energyCapacityKwh: 20,
         },
       }),
     ];
 
-    const result = await runPowerTicks(10, {
+    const result = await runPowerTicks(3600, {
       loadModules: async () => modules,
       saveModules: async (nextModules) => {
         savedModules.push(nextModules);
       },
+      readSolarIrradiance: async () => ({
+        wPerM2: 900,
+        condition: "clear",
+      }),
     });
 
-    expect(result.summary.energyDemandKwh).toBeCloseTo(0.01);
+    expect(result.summary.solarGenerationKw).toBe(4);
+    expect(result.summary.netPowerKw).toBe(1);
     expect(savedModules).toHaveLength(1);
-    expect(savedModules[0][1].runtimeAttributes.energyStoredKwh).toBeCloseTo(9.99);
+    expect(savedModules[0][2].runtimeAttributes.energyStoredKwh).toBe(9);
   });
 });

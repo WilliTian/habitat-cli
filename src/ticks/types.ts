@@ -33,10 +33,13 @@ export type PowerTickSummary = {
   tickCount: number;
   activePowerDrawKw: number;
   solarGenerationKw: number;
+  solarEnergyGeneratedKwh: number;
   netPowerKw: number;
   solarIrradianceWPerM2: number;
   solarCondition: SolarCondition;
+  solarChargingStatus: string;
   energyDemandKwh: number;
+  grossEnergyDemandKwh: number;
   energyChargedKwh: number;
   energyDrainedKwh: number;
   unmetEnergyKwh: number;

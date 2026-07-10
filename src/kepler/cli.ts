@@ -5,8 +5,10 @@ import {
   formatBlueprint,
   formatBlueprintTable,
   formatResourceTable,
+  formatSolarIrradianceStatus,
   listBlueprints,
   listResources,
+  readSolarIrradiance,
 } from "./index";
 
 async function printBlueprintList(): Promise<void> {
@@ -28,6 +30,11 @@ async function printBlueprintDetails(blueprintId: string): Promise<void> {
 async function printResourceList(): Promise<void> {
   const resources = await listResources();
   console.log(formatResourceTable(resources));
+}
+
+async function printSolarStatus(): Promise<void> {
+  const solarIrradiance = await readSolarIrradiance();
+  console.log(formatSolarIrradianceStatus(solarIrradiance));
 }
 
 export function registerBlueprintCommands(program: Command): void {
@@ -59,5 +66,16 @@ export function registerBlueprintCommands(program: Command): void {
     .description("List Kepler resource catalog entries.")
     .action(async () => {
       await printResourceList();
+    });
+
+  const solarCommand = program
+    .command("solar")
+    .description("Show Kepler sunlight conditions.");
+
+  solarCommand
+    .command("status")
+    .description("Show current solar irradiance from Kepler.")
+    .action(async () => {
+      await printSolarStatus();
     });
 }

@@ -125,3 +125,55 @@ describe("resource cli", () => {
     logSpy.mockRestore();
   });
 });
+
+describe("solar cli", () => {
+  test("formats solar status in beginner-friendly language", () => {
+    const output = kepler.formatSolarIrradianceStatus({
+      wPerM2: 900,
+      condition: "clear",
+    });
+
+    expect(output).toBe(
+      [
+        "Sunlight is clear right now.",
+        "Solar irradiance: 900 W/m2",
+      ].join("\n"),
+    );
+  });
+
+  test("registers solar status command", () => {
+    const program = new Command();
+
+    registerBlueprintCommands(program);
+
+    const solarCommand = program.commands.find((command) => command.name() === "solar");
+    const statusCommand = solarCommand?.commands.find((command) => command.name() === "status");
+
+    expect(solarCommand?.description()).toBe("Show Kepler sunlight conditions.");
+    expect(statusCommand?.description()).toBe("Show current solar irradiance from Kepler.");
+  });
+
+  test("prints current solar status", async () => {
+    const program = new Command();
+    const logSpy = spyOn(console, "log").mockImplementation(() => {});
+    const readSolarIrradianceSpy = spyOn(kepler, "readSolarIrradiance").mockResolvedValue({
+      wPerM2: 250,
+      condition: "dust",
+    });
+
+    registerBlueprintCommands(program);
+
+    await program.parseAsync(["node", "habitat", "solar", "status"]);
+
+    expect(readSolarIrradianceSpy).toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalledWith(
+      [
+        "Sunlight is dusty right now.",
+        "Solar irradiance: 250 W/m2",
+      ].join("\n"),
+    );
+
+    readSolarIrradianceSpy.mockRestore();
+    logSpy.mockRestore();
+  });
+});

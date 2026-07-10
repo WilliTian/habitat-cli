@@ -43,7 +43,15 @@ export function formatPowerTickSummary(summary: PowerTickSummary): string {
   const lines = [
     `ticks: ${summary.tickCount}`,
     `activePowerDrawKw: ${formatNumber(summary.activePowerDrawKw)}`,
+    `solarGenerationKw: ${formatNumber(summary.solarGenerationKw)}`,
+    `solarEnergyGeneratedKwh: ${formatNumber(summary.solarEnergyGeneratedKwh)}`,
+    `netPowerKw: ${formatNumber(summary.netPowerKw)}`,
+    `solarIrradianceWPerM2: ${formatNumber(summary.solarIrradianceWPerM2)}`,
+    `solarCondition: ${summary.solarCondition}`,
+    `solarChargingStatus: ${summary.solarChargingStatus}`,
+    `grossEnergyDemandKwh: ${formatNumber(summary.grossEnergyDemandKwh)}`,
     `energyDemandKwh: ${formatNumber(summary.energyDemandKwh)}`,
+    `energyChargedKwh: ${formatNumber(summary.energyChargedKwh)}`,
     `energyDrainedKwh: ${formatNumber(summary.energyDrainedKwh)}`,
     `unmetEnergyKwh: ${formatNumber(summary.unmetEnergyKwh)}`,
   ];
@@ -60,6 +68,14 @@ export function formatPowerTickSummary(summary: PowerTickSummary): string {
     lines.push(
       `battery: ${drain.displayName} ${formatNumber(drain.beforeEnergyStoredKwh)} -> ${formatNumber(
         drain.afterEnergyStoredKwh,
+      )} kWh`,
+    );
+  }
+
+  for (const charge of summary.batteryCharges) {
+    lines.push(
+      `batteryCharge: ${charge.displayName} ${formatNumber(charge.beforeEnergyStoredKwh)} -> ${formatNumber(
+        charge.afterEnergyStoredKwh,
       )} kWh`,
     );
   }

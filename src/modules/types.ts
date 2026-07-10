@@ -3,6 +3,8 @@ export type ModuleRuntimeAttributes = Record<string, unknown> & {
   status?: string;
   health?: number;
   powerDrawKw?: number | Record<string, number>;
+  powerGenerationKw?: number;
+  generationKw?: number;
   energyStoredKwh?: number;
   energyCapacityKwh?: number;
   currentEnergyKwh?: number;

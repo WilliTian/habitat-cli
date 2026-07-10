@@ -302,6 +302,28 @@ export function formatUnregisterKeplerHabitatResult(
   return `Cleared stale local registration for habitat named "${result.keplerHabitat.displayName}"; it was already absent in Kepler.`;
 }
 
+export function formatSolarIrradianceStatus(
+  reading: SolarIrradianceReading,
+): string {
+  return [
+    `Sunlight is ${formatSolarCondition(reading.condition)} right now.`,
+    `Solar irradiance: ${formatNumber(reading.wPerM2)} W/m2`,
+  ].join("\n");
+}
+
+function formatSolarCondition(condition: SolarIrradianceReading["condition"]): string {
+  switch (condition) {
+    case "clear":
+      return "clear";
+    case "dust":
+      return "dusty";
+    case "storm":
+      return "stormy";
+    case "night":
+      return "nighttime";
+  }
+}
+
 export function formatBlueprintSummary(blueprint: ProductionBlueprint): string {
   return `${blueprint.blueprintId} ${blueprint.displayName}`;
 }
