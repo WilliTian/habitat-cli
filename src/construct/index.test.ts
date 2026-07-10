@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  cancelConstruction,
   evaluateConstructionDryRun,
+  formatCancelConstruction,
   formatConstructionDryRun,
   formatConstructionStart,
   formatConstructionStatus,
@@ -607,6 +609,109 @@ describe("construct dry-run", () => {
         now: () => "2026-07-09T12:00:00.000Z",
       }),
     ).rejects.toThrow('Fabricator "fabricator-active" already has an active construction job.');
+  });
+
+  test("cancels an active construction job without creating the output module or refunding materials", async () => {
+    const savedModules: HabitatModule[][] = [];
+
+    const report = await cancelConstruction("fabricator-active", {
+      loadModules: async () => [
+        moduleFixture({
+          id: "fabricator-active",
+          blueprintId: "workshop-fabricator",
+          displayName: "Workshop Fabricator",
+          status: "active",
+          runtimeAttributes: {
+            constructionJob: {
+              blueprintId: "small-solar-array",
+              outputModuleId: "small_solar_array_2",
+              displayName: "Small Solar Array",
+              buildTicks: 180,
+              remainingTicks: 120,
+              futureModule: {
+                blueprintId: "small-solar-array",
+                displayName: "Small Solar Array",
+                runtimeAttributes: {},
+                capabilities: [],
+              },
+            },
+          },
+          capabilities: [],
+        }),
+        moduleFixture({
+          id: "small_solar_array_1",
+          blueprintId: "small-solar-array",
+          displayName: "Existing Small Solar Array",
+          status: "online",
+          capabilities: [],
+        }),
+      ],
+      saveModules: async (modules) => {
+        savedModules.push(modules);
+      },
+      now: () => "2026-07-09T12:00:00.000Z",
+    });
+
+    expect(report).toEqual({
+      fabricatorId: "fabricator-active",
+      fabricatorDisplayName: "Workshop Fabricator",
+      cancelled: true,
+      displayName: "Small Solar Array",
+    });
+    expect(formatCancelConstruction(report)).toBe(
+      'Cancelled construction of "Small Solar Array" on fabricator "Workshop Fabricator". Spent materials were not refunded.',
+    );
+    expect(savedModules).toHaveLength(1);
+    expect(savedModules[0]).toEqual([
+      {
+        ...moduleFixture({
+          id: "fabricator-active",
+          blueprintId: "workshop-fabricator",
+          displayName: "Workshop Fabricator",
+          status: "online",
+          capabilities: [],
+        }),
+        updatedAt: "2026-07-09T12:00:00.000Z",
+      },
+      moduleFixture({
+        id: "small_solar_array_1",
+        blueprintId: "small-solar-array",
+        displayName: "Existing Small Solar Array",
+        status: "online",
+        capabilities: [],
+      }),
+    ]);
+    expect(savedModules[0].some((module) => module.id === "small_solar_array_2")).toBe(false);
+  });
+
+  test("reports a no-op message when the fabricator has no active construction job", async () => {
+    const savedModules: HabitatModule[][] = [];
+
+    const report = await cancelConstruction("fabricator-active", {
+      loadModules: async () => [
+        moduleFixture({
+          id: "fabricator-active",
+          blueprintId: "workshop-fabricator",
+          displayName: "Workshop Fabricator",
+          status: "online",
+          capabilities: [],
+        }),
+      ],
+      saveModules: async (modules) => {
+        savedModules.push(modules);
+      },
+      now: () => "2026-07-09T12:00:00.000Z",
+    });
+
+    expect(report).toEqual({
+      fabricatorId: "fabricator-active",
+      fabricatorDisplayName: "Workshop Fabricator",
+      cancelled: false,
+    });
+    expect(formatCancelConstruction(report)).toBe(
+      'Fabricator "Workshop Fabricator" has no active construction job to cancel.',
+    );
+    expect(savedModules).toHaveLength(0);
   });
 
   test("formats construction status as a terminal-readable table", async () => {

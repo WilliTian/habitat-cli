@@ -19,13 +19,24 @@ export function registerConstructCommands(program: Command): void {
       console.log(construct.formatConstructionStart(report));
     });
 
-  program
+  const constructionCommand = program
     .command("construction")
-    .description("Inspect local habitat construction jobs.")
+    .description("Inspect local habitat construction jobs.");
+
+  constructionCommand
     .command("status")
     .description("Show active construction jobs and remaining build time.")
     .action(async () => {
       const rows = await construct.readConstructionStatus();
       console.log(construct.formatConstructionStatus(rows));
+    });
+
+  constructionCommand
+    .command("cancel")
+    .description("Cancel one active construction job on a fabricator.")
+    .argument("<fabricator-id>", "Fabricator id")
+    .action(async (fabricatorId: string) => {
+      const report = await construct.cancelConstruction(fabricatorId);
+      console.log(construct.formatCancelConstruction(report));
     });
 }

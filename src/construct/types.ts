@@ -74,3 +74,10 @@ export type ConstructionStatusRow = {
   buildTicks: number;
   remainingTicks: number;
 };
+
+export type CancelConstructionReport = {
+  fabricatorId: string;
+  fabricatorDisplayName: string;
+  cancelled: boolean;
+  displayName?: string;
+};

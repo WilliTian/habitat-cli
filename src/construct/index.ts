@@ -5,6 +5,7 @@ import type { HabitatInventoryResource } from "../inventory/types";
 import type { ProductionBlueprint } from "../kepler/types";
 import type { HabitatModule } from "../modules/types";
 import type {
+  CancelConstructionReport,
   ConstructDryRunReport,
   ConstructFacilityResult,
   ConstructInventoryResult,
@@ -27,6 +28,12 @@ export type ConstructStartDependencies = ConstructDependencies & {
   now: () => string;
 };
 
+export type CancelConstructionDependencies = {
+  loadModules: () => Promise<HabitatModule[]>;
+  saveModules: (modules: HabitatModule[]) => Promise<void>;
+  now: () => string;
+};
+
 const defaultDependencies: ConstructDependencies = {
   findBlueprint,
   loadModules,
@@ -37,6 +44,12 @@ const defaultStartDependencies: ConstructStartDependencies = {
   ...defaultDependencies,
   saveModules,
   saveInventory,
+  now: () => new Date().toISOString(),
+};
+
+const defaultCancelDependencies: CancelConstructionDependencies = {
+  loadModules,
+  saveModules,
   now: () => new Date().toISOString(),
 };
 
@@ -151,6 +164,59 @@ export async function readConstructionStatus(
       },
     ];
   });
+}
+
+export async function cancelConstruction(
+  fabricatorId: string,
+  dependencies: CancelConstructionDependencies = defaultCancelDependencies,
+): Promise<CancelConstructionReport> {
+  const modules = await dependencies.loadModules();
+  const trimmedFabricatorId = fabricatorId.trim();
+
+  if (trimmedFabricatorId.length === 0) {
+    throw new Error("Fabricator id is required.");
+  }
+
+  const matches = modules.filter(
+    (module) =>
+      module.id.startsWith(trimmedFabricatorId) ||
+      shortModuleId(module.id).startsWith(trimmedFabricatorId),
+  );
+
+  if (matches.length === 0) {
+    throw new Error(`Module "${fabricatorId}" was not found.`);
+  }
+
+  if (matches.length > 1) {
+    throw new Error(`Module id "${fabricatorId}" is ambiguous.`);
+  }
+
+  const fabricator = matches[0];
+
+  if (fabricator.blueprintId !== "workshop-fabricator") {
+    throw new Error(`Module "${fabricatorId}" is not a workshop fabricator.`);
+  }
+
+  const constructionJob = readConstructionJob(fabricator);
+
+  if (!constructionJob) {
+    return {
+      fabricatorId: fabricator.id,
+      fabricatorDisplayName: fabricator.displayName,
+      cancelled: false,
+    };
+  }
+
+  const timestamp = dependencies.now();
+  const nextModules = clearConstructionJob(modules, fabricator.id, timestamp);
+  await dependencies.saveModules(nextModules);
+
+  return {
+    fabricatorId: fabricator.id,
+    fabricatorDisplayName: fabricator.displayName,
+    cancelled: true,
+    displayName: constructionJob.displayName,
+  };
 }
 
 async function loadBlueprintForConstruction(
@@ -311,6 +377,14 @@ export function formatConstructionStatus(rows: ConstructionStatusRow[]): string 
   }
 
   return lines.join("\n");
+}
+
+export function formatCancelConstruction(report: CancelConstructionReport): string {
+  if (!report.cancelled) {
+    return `Fabricator "${report.fabricatorDisplayName}" has no active construction job to cancel.`;
+  }
+
+  return `Cancelled construction of "${report.displayName}" on fabricator "${report.fabricatorDisplayName}". Spent materials were not refunded.`;
 }
 
 const readyStatuses = new Set(["online", "active"]);
@@ -560,6 +634,30 @@ function attachConstructionJob(
         ...module.runtimeAttributes,
         status: "active",
         constructionJob,
+      },
+      updatedAt,
+    };
+  });
+}
+
+function clearConstructionJob(
+  modules: HabitatModule[],
+  fabricatorId: string,
+  updatedAt: string,
+): HabitatModule[] {
+  return modules.map((module) => {
+    if (module.id !== fabricatorId) {
+      return module;
+    }
+
+    const { constructionJob: _constructionJob, ...runtimeAttributes } =
+      module.runtimeAttributes;
+
+    return {
+      ...module,
+      runtimeAttributes: {
+        ...runtimeAttributes,
+        status: "online",
       },
       updatedAt,
     };

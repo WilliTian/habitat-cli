@@ -1,0 +1,73 @@
+import { mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { Database } from "bun:sqlite";
+
+import { initialSchemaStatements, initialSchemaVersion } from "./schema";
+
+let sharedDatabase: Database | undefined;
+
+const projectRootPath = fileURLToPath(new URL("../../../", import.meta.url));
+
+export function resolveHabitatDatabasePath(): string {
+  if (process.env.HABITAT_SQLITE_PATH?.trim()) {
+    return process.env.HABITAT_SQLITE_PATH.trim();
+  }
+
+  if (process.env.BUN_TEST || process.env.NODE_ENV === "test") {
+    return process.env.HABITAT_TEST_SQLITE_PATH?.trim() || "/tmp/habitat-cli-test.sqlite";
+  }
+
+  return join(projectRootPath, ".habitat", "state.sqlite");
+}
+
+export function openHabitatDatabase(path = resolveHabitatDatabasePath()): Database {
+  if (path !== ":memory:") {
+    mkdirSync(dirname(path), { recursive: true });
+  }
+
+  const database = new Database(path);
+  database.exec("PRAGMA foreign_keys = ON;");
+  database.exec("PRAGMA journal_mode = DELETE;");
+  applySchema(database);
+  return database;
+}
+
+export function getHabitatDatabase(): Database {
+  if (!sharedDatabase) {
+    sharedDatabase = openHabitatDatabase();
+  }
+
+  return sharedDatabase;
+}
+
+export function resetHabitatDatabaseForTests(): void {
+  sharedDatabase = undefined;
+}
+
+export function applySchema(database: Database): void {
+  for (const statement of initialSchemaStatements) {
+    database.exec(statement);
+  }
+
+  database
+    .query("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)")
+    .run(initialSchemaVersion, new Date().toISOString());
+}
+
+export function withTransaction<T>(database: Database, work: () => T): T {
+  return database.transaction(work)();
+}
+
+export function hasAppliedMigration(database: Database, version: string): boolean {
+  const row = database
+    .query("SELECT 1 FROM schema_migrations WHERE version = ? LIMIT 1")
+    .get(version);
+  return row != null;
+}
+
+export function markMigrationApplied(database: Database, version: string): void {
+  database
+    .query("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)")
+    .run(version, new Date().toISOString());
+}

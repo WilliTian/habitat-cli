@@ -1,0 +1,64 @@
+export const initialSchemaVersion = "2026-07-10-initial";
+
+export const initialSchemaStatements = [
+  `
+  CREATE TABLE IF NOT EXISTS schema_migrations (
+    version TEXT PRIMARY KEY,
+    applied_at TEXT NOT NULL
+  )
+  `,
+  `
+  CREATE TABLE IF NOT EXISTS registration (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    habitat_uuid TEXT NOT NULL,
+    habitat_id TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    registered_at TEXT NOT NULL,
+    refreshed_at TEXT,
+    module_count INTEGER,
+    habitat_slug TEXT,
+    catalog_version TEXT,
+    status TEXT,
+    last_seen_at TEXT,
+    starter_modules_json TEXT NOT NULL
+  )
+  `,
+  `
+  CREATE TABLE IF NOT EXISTS modules (
+    id TEXT PRIMARY KEY,
+    sort_index INTEGER NOT NULL,
+    blueprint_id TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    source TEXT NOT NULL CHECK (source IN ('starter', 'local')),
+    runtime_attributes_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+  `,
+  `
+  CREATE TABLE IF NOT EXISTS module_connections (
+    module_id TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    connected_to_module_id TEXT NOT NULL,
+    PRIMARY KEY (module_id, position),
+    FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
+  )
+  `,
+  `
+  CREATE TABLE IF NOT EXISTS module_capabilities (
+    module_id TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    capability TEXT NOT NULL,
+    PRIMARY KEY (module_id, position),
+    FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
+  )
+  `,
+  `
+  CREATE TABLE IF NOT EXISTS inventory_resources (
+    resource_type TEXT PRIMARY KEY,
+    quantity REAL NOT NULL,
+    unit TEXT,
+    updated_at TEXT NOT NULL
+  )
+  `,
+] as const;

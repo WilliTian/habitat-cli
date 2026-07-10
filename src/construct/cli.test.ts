@@ -3,7 +3,11 @@ import { Command } from "commander";
 
 import { registerConstructCommands } from "./cli";
 import * as construct from "./index";
-import type { ConstructDryRunReport, ConstructStartReport } from "./types";
+import type {
+  CancelConstructionReport,
+  ConstructDryRunReport,
+  ConstructStartReport,
+} from "./types";
 
 function dryRunReportFixture(): ConstructDryRunReport {
   return {
@@ -63,6 +67,15 @@ function startReportFixture(): ConstructStartReport {
       capabilities: [],
     },
     resourcesSpent: [],
+  };
+}
+
+function cancelReportFixture(): CancelConstructionReport {
+  return {
+    fabricatorId: "fabricator-1",
+    fabricatorDisplayName: "Workshop Fabricator",
+    cancelled: true,
+    displayName: "Small Solar Array",
   };
 }
 
@@ -136,6 +149,31 @@ describe("construct cli", () => {
     logSpy.mockRestore();
   });
 
+  test("runs construction cancel output", async () => {
+    const program = new Command();
+    const logSpy = spyOn(console, "log").mockImplementation(() => {});
+    const cancelSpy = spyOn(construct, "cancelConstruction").mockResolvedValue(
+      cancelReportFixture(),
+    );
+    const formatSpy = spyOn(construct, "formatCancelConstruction").mockReturnValue(
+      "cancelled construction",
+    );
+
+    registerConstructCommands(program);
+
+    await program.parseAsync(["construction", "cancel", "workshop-fabricator-1"], {
+      from: "user",
+    });
+
+    expect(cancelSpy).toHaveBeenCalledWith("workshop-fabricator-1");
+    expect(formatSpy).toHaveBeenCalledWith(cancelReportFixture());
+    expect(logSpy).toHaveBeenCalledWith("cancelled construction");
+
+    formatSpy.mockRestore();
+    cancelSpy.mockRestore();
+    logSpy.mockRestore();
+  });
+
   test("registers construction status command", () => {
     const program = new Command();
 
@@ -143,8 +181,10 @@ describe("construct cli", () => {
 
     const constructionCommand = program.commands.find((command) => command.name() === "construction");
     const statusCommand = constructionCommand?.commands.find((command) => command.name() === "status");
+    const cancelCommand = constructionCommand?.commands.find((command) => command.name() === "cancel");
 
     expect(constructionCommand?.description()).toBe("Inspect local habitat construction jobs.");
     expect(statusCommand?.description()).toBe("Show active construction jobs and remaining build time.");
+    expect(cancelCommand?.description()).toBe("Cancel one active construction job on a fabricator.");
   });
 });
