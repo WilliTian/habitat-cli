@@ -13,6 +13,10 @@ import {
   registerSolarRoutes,
   type SolarRouteDependencies,
 } from "./solar";
+import {
+  registerModuleRoutes,
+  type ModuleRouteDependencies,
+} from "./modules";
 
 type RequestLogger = (message: string) => void;
 
@@ -20,6 +24,7 @@ export type BackendAppDependencies = {
   registration?: RegistrationRouteDependencies;
   catalog?: CatalogRouteDependencies;
   solar?: SolarRouteDependencies;
+  modules?: ModuleRouteDependencies;
   logger?: RequestLogger;
 };
 
@@ -38,6 +43,7 @@ export function createBackendApp(
   registerRegistrationRoutes(app, dependencies.registration);
   registerCatalogRoutes(app, dependencies.catalog);
   registerSolarRoutes(app, dependencies.solar);
+  registerModuleRoutes(app, dependencies.modules);
 
   return app;
 }

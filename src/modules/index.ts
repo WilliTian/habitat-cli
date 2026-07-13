@@ -4,12 +4,8 @@ import type { ProductionBlueprint, StarterModuleInstance } from "../kepler/types
 import { loadModules, saveModules } from "./state";
 import type { HabitatModule, HabitatModuleCreateInput, HabitatModuleUpdateInput } from "./types";
 import { resolvePowerDrawKw } from "../ticks/index";
-import {
-  formatConstructionJobLines,
-  formatUsefulRuntimeAttributeLines,
-  readBatteryDiagnostics,
-  readModuleStatus,
-} from "./diagnostics";
+import { shortModuleId } from "./format";
+import type { ModuleStatusUpdate } from "./format";
 
 const validModuleStatuses = ["offline", "idle", "online", "active", "damaged"] as const;
 
@@ -25,11 +21,12 @@ const defaultModuleStateDependencies: ModuleStateDependencies = {
   saveModules,
 };
 
-export type ModuleStatusUpdate = {
-  module: HabitatModule;
-  status: ModuleRuntimeStatus;
-  powerDrawKw: number;
-};
+export type { ModuleStatusUpdate } from "./format";
+export {
+  formatModule,
+  formatModuleStatusUpdate,
+  formatModuleSummary,
+} from "./format";
 
 function validateName(value: string, fieldName: string): string {
   const trimmedValue = value.trim();
@@ -239,56 +236,6 @@ export async function deleteModule(id: string): Promise<void> {
 export { loadModules, saveModules } from "./state";
 export { deleteModules } from "./state";
 
-export function formatModule(module: HabitatModule): string {
-  const lines = [
-    `id: ${module.id}`,
-    `blueprintId: ${module.blueprintId}`,
-    `displayName: ${module.displayName}`,
-    `source: ${module.source}`,
-    `connectedTo: ${module.connectedTo.join(", ") || "null"}`,
-    `capabilities: ${module.capabilities.join(", ") || "null"}`,
-  ];
-
-  appendRuntimeStateLines(lines, module);
-  appendBatteryLines(lines, module);
-  lines.push(...formatConstructionJobLines(module));
-  lines.push(...formatUsefulRuntimeAttributeLines(module));
-
-  lines.push(`runtimeAttributes: ${JSON.stringify(module.runtimeAttributes)}`);
-  lines.push(`createdAt: ${module.createdAt}`);
-  lines.push(`updatedAt: ${module.updatedAt}`);
-
-  return lines.join("\n");
-}
-
-export function formatModuleSummary(module: HabitatModule): string {
-  const lines = [
-    `${shortModuleId(module.id)} ${module.displayName}`,
-    `source: ${module.source}`,
-  ];
-
-  lines.push(`status: ${readModuleStatus(module)}`);
-
-  return lines.join(" | ");
-}
-
-export function formatModuleStatusUpdate(update: ModuleStatusUpdate): string {
-  return [
-    `moduleId: ${shortModuleId(update.module.id)}`,
-    `status: ${update.status}`,
-    `powerDrawKw: ${formatNumber(update.powerDrawKw)}`,
-  ].join("\n");
-}
-
-function shortModuleId(id: string): string {
-  const keplerModuleSuffix = id.match(/^habitat_[^_]+_[^_]+_[^_]+_[^_]+_[^_]+_(.+)$/);
-  if (keplerModuleSuffix) {
-    return keplerModuleSuffix[1];
-  }
-
-  return id.slice(0, 8);
-}
-
 function findModulesByPrefix(modules: HabitatModule[], prefix: string): HabitatModule[] {
   return modules.filter(
     (module) => module.id.startsWith(prefix) || shortModuleId(module.id).startsWith(prefix),
@@ -326,28 +273,4 @@ function hydrateRuntimeAttributes(
   }
 
   return runtimeAttributes;
-}
-
-function appendRuntimeStateLines(lines: string[], module: HabitatModule): void {
-  lines.push(`status: ${readModuleStatus(module)}`);
-}
-
-function appendBatteryLines(lines: string[], module: HabitatModule): void {
-  const battery = readBatteryDiagnostics(module);
-
-  if (!battery) {
-    return;
-  }
-
-  lines.push(`batteryEnergyStoredKwh: ${formatNumber(battery.storedKwh)}`);
-
-  if (battery.capacityKwh !== null) {
-    lines.push(`batteryEnergyCapacityKwh: ${formatNumber(battery.capacityKwh)}`);
-  }
-
-  lines.push(`usableBatteryEnergyKwh: ${formatNumber(battery.usableKwh)}`);
-}
-
-function formatNumber(value: number): string {
-  return Number(value.toFixed(6)).toString();
 }

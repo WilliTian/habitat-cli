@@ -1,18 +1,41 @@
 import { Command } from "commander";
 
 import {
-  createModule,
-  deleteModule,
-  findModuleByPrefix,
+  createModuleResource,
+  deleteModuleResource,
+  readModule,
+  readModules,
+  updateModuleResource,
+} from "../api/modules";
+import {
   formatModule,
   formatModuleSummary,
   formatModuleStatusUpdate,
-  listModules,
-  setModuleStatus,
-  updateModuleByPrefix,
-  updateModule,
-} from "./index";
-import { formatHabitatStatus, readHabitatStatus } from "../status/index";
+} from "./format";
+import { buildHabitatStatus, formatHabitatStatus } from "../status/format";
+import { resolvePowerDrawKw } from "../ticks/power";
+
+const validModuleStatuses = ["offline", "idle", "online", "active", "damaged"] as const;
+
+type ModuleRuntimeStatus = (typeof validModuleStatuses)[number];
+
+export type ModuleCommandDependencies = Partial<{
+  readModules: typeof readModules;
+  createModuleResource: typeof createModuleResource;
+  readModule: typeof readModule;
+  updateModuleResource: typeof updateModuleResource;
+  deleteModuleResource: typeof deleteModuleResource;
+}>;
+
+type ResolvedModuleCommandDependencies = Required<ModuleCommandDependencies>;
+
+const defaultDependencies: ResolvedModuleCommandDependencies = {
+  readModules,
+  createModuleResource,
+  readModule,
+  updateModuleResource,
+  deleteModuleResource,
+};
 
 function collectOptionValues(value: string, values: string[]): string[] {
   values.push(value);
@@ -46,8 +69,8 @@ function parseRuntimeAttributes(values: string[]): Record<string, unknown> | und
   return runtimeAttributes;
 }
 
-async function printModuleList(): Promise<void> {
-  const modules = await listModules();
+async function printModuleList(dependencies: ResolvedModuleCommandDependencies): Promise<void> {
+  const { modules } = await dependencies.readModules();
   if (modules.length === 0) {
     console.log("No modules found.");
     return;
@@ -58,25 +81,30 @@ async function printModuleList(): Promise<void> {
   }
 }
 
-async function printModuleDetails(id: string): Promise<void> {
-  const module = await findModuleByPrefix(id);
-  if (!module) {
-    console.error(`Module "${id}" was not found.`);
-    process.exit(1);
-  }
-
+async function printModuleDetails(
+  id: string,
+  dependencies: ResolvedModuleCommandDependencies,
+): Promise<void> {
+  const { module } = await dependencies.readModule(id);
   console.log(formatModule(module));
 }
 
-export function registerModuleCommands(program: Command): void {
+export function registerModuleCommands(
+  program: Command,
+  dependencies: ModuleCommandDependencies = defaultDependencies,
+): void {
+  const commandDependencies: ResolvedModuleCommandDependencies = {
+    ...defaultDependencies,
+    ...dependencies,
+  };
   const moduleCommand = program.command("module").description("Manage local habitat modules.");
 
   moduleCommand
     .command("status")
     .description("Show local module states and power draw.")
     .action(async () => {
-      const status = await readHabitatStatus();
-      console.log(formatHabitatStatus(status));
+      const { modules } = await commandDependencies.readModules();
+      console.log(formatHabitatStatus(buildHabitatStatus(modules)));
     });
 
   moduleCommand
@@ -85,15 +113,26 @@ export function registerModuleCommands(program: Command): void {
     .argument("<module-id>", "Module id")
     .argument("<status>", "Runtime status")
     .action(async (moduleId: string, status: string) => {
-      const update = await setModuleStatus(moduleId, status);
-      console.log(formatModuleStatusUpdate(update));
+      const nextStatus = parseModuleRuntimeStatus(status);
+      const { module: currentModule } = await commandDependencies.readModule(moduleId);
+      const { module } = await commandDependencies.updateModuleResource(moduleId, {
+        runtimeAttributes: {
+          ...currentModule.runtimeAttributes,
+          status: nextStatus,
+        },
+      });
+      console.log(formatModuleStatusUpdate({
+        module,
+        status: nextStatus,
+        powerDrawKw: resolvePowerDrawKw(module),
+      }));
     });
 
   moduleCommand
     .command("list")
     .description("List local habitat modules.")
     .action(async () => {
-      await printModuleList();
+      await printModuleList(commandDependencies);
     });
 
   moduleCommand
@@ -101,7 +140,7 @@ export function registerModuleCommands(program: Command): void {
     .description("Show one local habitat module.")
     .argument("<id>", "Module id")
     .action(async (id: string) => {
-      await printModuleDetails(id);
+      await printModuleDetails(id, commandDependencies);
     });
 
   moduleCommand
@@ -119,7 +158,7 @@ export function registerModuleCommands(program: Command): void {
       capability: string[];
       runtimeAttribute: string[];
     }) => {
-      const module = await createModule({
+      const { module } = await commandDependencies.createModuleResource({
         blueprintId: options.blueprintId,
         displayName: options.name,
         connectedTo: options.connectedTo,
@@ -146,7 +185,7 @@ export function registerModuleCommands(program: Command): void {
       capability: string[];
       runtimeAttribute: string[];
     }) => {
-      const module = await updateModuleByPrefix(id, {
+      const { module } = await commandDependencies.updateModuleResource(id, {
         blueprintId: options.blueprintId,
         displayName: options.name,
         connectedTo: options.connectedTo.length > 0 ? options.connectedTo : undefined,
@@ -165,13 +204,17 @@ export function registerModuleCommands(program: Command): void {
     .description("Delete a local habitat module.")
     .argument("<id>", "Module id")
     .action(async (id: string) => {
-      const module = await findModuleByPrefix(id);
-      if (!module) {
-        console.error(`Module "${id}" was not found.`);
-        process.exit(1);
-      }
-
-      await deleteModule(module.id);
+      const { module } = await commandDependencies.deleteModuleResource(id);
       console.log(`Deleted module "${module.id}".`);
     });
+}
+
+function parseModuleRuntimeStatus(status: string): ModuleRuntimeStatus {
+  const trimmedStatus = status.trim();
+
+  if (validModuleStatuses.includes(trimmedStatus as ModuleRuntimeStatus)) {
+    return trimmedStatus as ModuleRuntimeStatus;
+  }
+
+  throw new Error("Status must be one of: offline, idle, online, active, damaged.");
 }
