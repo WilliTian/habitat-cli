@@ -35,24 +35,56 @@ export type CancelConstructionDependencies = {
   now: () => string;
 };
 
-const defaultDependencies: ConstructDependencies = {
-  findBlueprint: async (blueprintId) => (await readBlueprint(blueprintId)).blueprint,
-  loadModules: async () => (await readModules()).modules,
-  loadInventory: async () => (await readInventory()).inventory,
+export type ConstructionApiOperations = {
+  readBlueprint: typeof readBlueprint;
+  readModules: typeof readModules;
+  replaceModules: typeof replaceModules;
+  readInventory: typeof readInventory;
+  replaceInventory: typeof replaceInventory;
 };
 
-const defaultStartDependencies: ConstructStartDependencies = {
-  ...defaultDependencies,
-  saveModules: async (modules) => { await replaceModules(modules); },
-  saveInventory: async (inventory) => { await replaceInventory(inventory); },
-  now: () => new Date().toISOString(),
+const defaultApiOperations: ConstructionApiOperations = {
+  readBlueprint,
+  readModules,
+  replaceModules,
+  readInventory,
+  replaceInventory,
 };
 
-const defaultCancelDependencies: CancelConstructionDependencies = {
-  loadModules: async () => (await readModules()).modules,
-  saveModules: async (modules) => { await replaceModules(modules); },
-  now: () => new Date().toISOString(),
-};
+export function createConstructionApiDependencies(
+  operations: ConstructionApiOperations = defaultApiOperations,
+): {
+  construct: ConstructDependencies;
+  start: ConstructStartDependencies;
+  cancel: CancelConstructionDependencies;
+} {
+  const construct: ConstructDependencies = {
+    findBlueprint: async (blueprintId) =>
+      (await operations.readBlueprint(blueprintId)).blueprint,
+    loadModules: async () => (await operations.readModules()).modules,
+    loadInventory: async () => (await operations.readInventory()).inventory,
+  };
+
+  return {
+    construct,
+    start: {
+      ...construct,
+      saveModules: async (modules) => { await operations.replaceModules(modules); },
+      saveInventory: async (inventory) => { await operations.replaceInventory(inventory); },
+      now: () => new Date().toISOString(),
+    },
+    cancel: {
+      loadModules: construct.loadModules,
+      saveModules: async (modules) => { await operations.replaceModules(modules); },
+      now: () => new Date().toISOString(),
+    },
+  };
+}
+
+const defaultApiDependencies = createConstructionApiDependencies();
+const defaultDependencies = defaultApiDependencies.construct;
+const defaultStartDependencies = defaultApiDependencies.start;
+const defaultCancelDependencies = defaultApiDependencies.cancel;
 
 export async function evaluateConstructionDryRun(
   blueprintId: string,

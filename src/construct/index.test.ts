@@ -4,6 +4,7 @@ import { HabitatApiError } from "../api/client";
 
 import {
   cancelConstruction,
+  createConstructionApiDependencies,
   evaluateConstructionDryRun,
   formatCancelConstruction,
   formatConstructionDryRun,
@@ -89,6 +90,53 @@ function resourceFixture(input: {
 }
 
 describe("construct dry-run", () => {
+  test("construction API adapters delegate reads and writes to focused operations", async () => {
+    const blueprint = blueprintFixture();
+    const modules: HabitatModule[] = [];
+    const inventory: HabitatInventoryResource[] = [];
+    const calls: string[] = [];
+    const adapters = createConstructionApiDependencies({
+      readBlueprint: async (blueprintId) => {
+        calls.push(`blueprint:${blueprintId}`);
+        return { blueprint };
+      },
+      readModules: async () => {
+        calls.push("modules:read");
+        return { modules };
+      },
+      replaceModules: async (nextModules) => {
+        calls.push("modules:replace");
+        return { modules: nextModules };
+      },
+      readInventory: async () => {
+        calls.push("inventory:read");
+        return { inventory };
+      },
+      replaceInventory: async (nextInventory) => {
+        calls.push("inventory:replace");
+        return { inventory: nextInventory };
+      },
+    });
+
+    expect(await adapters.construct.findBlueprint("small-solar-array")).toEqual(blueprint);
+    expect(await adapters.construct.loadModules()).toEqual(modules);
+    expect(await adapters.construct.loadInventory()).toEqual(inventory);
+    await adapters.start.saveModules(modules);
+    await adapters.start.saveInventory(inventory);
+    expect(await adapters.cancel.loadModules()).toEqual(modules);
+    await adapters.cancel.saveModules(modules);
+
+    expect(calls).toEqual([
+      "blueprint:small-solar-array",
+      "modules:read",
+      "inventory:read",
+      "modules:replace",
+      "inventory:replace",
+      "modules:read",
+      "modules:replace",
+    ]);
+  });
+
   test("default adapters use focused Habitat API modules", async () => {
     const source = await Bun.file(new URL("./index.ts", import.meta.url)).text();
 

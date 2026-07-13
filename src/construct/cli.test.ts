@@ -80,6 +80,15 @@ function cancelReportFixture(): CancelConstructionReport {
 }
 
 describe("construct cli", () => {
+  test("imports construction behavior without direct API or persistence access", async () => {
+    const source = await Bun.file(new URL("./cli.ts", import.meta.url)).text();
+
+    expect(source).toContain('from "./index"');
+    expect(source).not.toContain('from "../api/');
+    expect(source).not.toContain('/state"');
+    expect(source).not.toContain("persistence");
+  });
+
   test("starts construction when --dry-run is not provided", async () => {
     const program = new Command();
     const errorSpy = spyOn(console, "error").mockImplementation(() => {});
