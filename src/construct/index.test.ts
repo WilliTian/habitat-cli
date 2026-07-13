@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
+import { HabitatApiError } from "../api/client";
+
 import {
   cancelConstruction,
   evaluateConstructionDryRun,
@@ -87,6 +89,17 @@ function resourceFixture(input: {
 }
 
 describe("construct dry-run", () => {
+  test("default adapters use focused Habitat API modules", async () => {
+    const source = await Bun.file(new URL("./index.ts", import.meta.url)).text();
+
+    expect(source).toContain('from "../api/catalog"');
+    expect(source).toContain('from "../api/inventory"');
+    expect(source).toContain('from "../api/modules"');
+    expect(source).not.toContain('from "../kepler/index"');
+    expect(source).not.toContain('from "../inventory/index"');
+    expect(source).not.toContain('from "../modules/index"');
+  });
+
   test("reports all checks passing when construction can start", async () => {
     const report = await evaluateConstructionDryRun("small-solar-array", {
       findBlueprint: async () => blueprintFixture(),
@@ -388,6 +401,23 @@ describe("construct dry-run", () => {
     ).rejects.toThrow('Blueprint "missing-blueprint" was not found.');
   });
 
+  test("maps a Habitat API 404 to the existing blueprint-not-found error", async () => {
+    await expect(evaluateConstructionDryRun("missing-blueprint", {
+      findBlueprint: async () => {
+        throw new HabitatApiError({
+          backendMessage: 'Blueprint "missing-blueprint" was not found.',
+          message: 'Habitat API request failed for /catalog/blueprints/missing-blueprint: Blueprint "missing-blueprint" was not found.',
+          path: "/catalog/blueprints/missing-blueprint",
+          status: 404,
+        });
+      },
+      loadModules: async () => [],
+      loadInventory: async () => [],
+    })).rejects.toMatchObject({
+      message: 'Blueprint "missing-blueprint" was not found.',
+    });
+  });
+
   test("preserves non-404 Kepler failures from live blueprint lookup", async () => {
     await expect(
       evaluateConstructionDryRun("small-solar-array", {
@@ -496,6 +526,41 @@ describe("construct dry-run", () => {
       },
     });
     expect(savedModules[0].some((module) => module.id === "small_solar_array_2")).toBe(false);
+  });
+
+  test("restores inventory when the module API write fails", async () => {
+    const inventory = [
+      resourceFixture({ resourceType: "steel", quantity: 12 }),
+      resourceFixture({ resourceType: "electronics", quantity: 4 }),
+    ];
+    const savedInventory: HabitatInventoryResource[][] = [];
+
+    await expect(startConstruction("small-solar-array", {
+      findBlueprint: async () => blueprintFixture(),
+      loadModules: async () => [
+        moduleFixture({
+          id: "fabricator-active",
+          blueprintId: "workshop-fabricator",
+          displayName: "Workshop Fabricator",
+          status: "online",
+          capabilities: [],
+        }),
+        moduleFixture({
+          id: "supply-cache-1",
+          blueprintId: "supply-cache",
+          displayName: "Supply Cache",
+          status: "online",
+          capabilities: ["solar-construction"],
+        }),
+      ],
+      loadInventory: async () => inventory,
+      saveInventory: async (nextInventory) => { savedInventory.push(nextInventory); },
+      saveModules: async () => { throw new Error("module API unavailable"); },
+      now: () => "2026-07-09T12:00:00.000Z",
+    })).rejects.toThrow("module API unavailable");
+
+    expect(savedInventory).toHaveLength(2);
+    expect(savedInventory[1]).toEqual(inventory);
   });
 
   test("reserves the next slug id when another construction job already holds a future module id", async () => {

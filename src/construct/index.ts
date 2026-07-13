@@ -1,6 +1,7 @@
-import { findBlueprint } from "../kepler/index";
-import { loadInventory, saveInventory } from "../inventory/index";
-import { loadModules, saveModules } from "../modules/index";
+import { readBlueprint } from "../api/catalog";
+import { HabitatApiError } from "../api/client";
+import { readInventory, replaceInventory } from "../api/inventory";
+import { readModules, replaceModules } from "../api/modules";
 import type { HabitatInventoryResource } from "../inventory/types";
 import type { ProductionBlueprint } from "../kepler/types";
 import type { HabitatModule } from "../modules/types";
@@ -35,21 +36,21 @@ export type CancelConstructionDependencies = {
 };
 
 const defaultDependencies: ConstructDependencies = {
-  findBlueprint,
-  loadModules,
-  loadInventory,
+  findBlueprint: async (blueprintId) => (await readBlueprint(blueprintId)).blueprint,
+  loadModules: async () => (await readModules()).modules,
+  loadInventory: async () => (await readInventory()).inventory,
 };
 
 const defaultStartDependencies: ConstructStartDependencies = {
   ...defaultDependencies,
-  saveModules,
-  saveInventory,
+  saveModules: async (modules) => { await replaceModules(modules); },
+  saveInventory: async (inventory) => { await replaceInventory(inventory); },
   now: () => new Date().toISOString(),
 };
 
 const defaultCancelDependencies: CancelConstructionDependencies = {
-  loadModules,
-  saveModules,
+  loadModules: async () => (await readModules()).modules,
+  saveModules: async (modules) => { await replaceModules(modules); },
   now: () => new Date().toISOString(),
 };
 
@@ -226,7 +227,7 @@ async function loadBlueprintForConstruction(
   try {
     return await dependencies.findBlueprint(blueprintId);
   } catch (error) {
-    if (isKeplerBlueprintNotFound(error)) {
+    if (isBlueprintNotFound(error)) {
       throw new Error(`Blueprint "${blueprintId}" was not found.`);
     }
 
@@ -520,10 +521,10 @@ function formatStringList(values: string[]): string {
   return values.length > 0 ? values.join(", ") : "none";
 }
 
-function isKeplerBlueprintNotFound(error: unknown): boolean {
+function isBlueprintNotFound(error: unknown): boolean {
   return (
-    error instanceof Error &&
-    /^Kepler request failed with 404(?:\b|:)/.test(error.message)
+    (error instanceof HabitatApiError && error.status === 404) ||
+    (error instanceof Error && /^Kepler request failed with 404(?:\b|:)/.test(error.message))
   );
 }
 
