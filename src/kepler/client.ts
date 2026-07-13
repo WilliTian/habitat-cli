@@ -58,7 +58,7 @@ export async function requestKeplerJson<T>(
 
   logger(`Kepler ${options.method} ${url.pathname} outbound`);
 
-  const response = await fetchImpl(url.toString(), {
+  const requestInit = {
     method: options.method,
     headers: {
       Authorization: `Bearer ${readKeplerApiToken(options.environment)}`,
@@ -66,7 +66,14 @@ export async function requestKeplerJson<T>(
       ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
     },
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  });
+  };
+  let response: Response;
+
+  try {
+    response = await fetchImpl(url.toString(), requestInit);
+  } catch {
+    throw new Error("Kepler request failed: transport error");
+  }
 
   logger(`Kepler ${options.method} ${url.pathname} ${response.status}`);
 

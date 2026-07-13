@@ -110,12 +110,12 @@ describe("catalog routes", () => {
     expect(await response.json()).toEqual({ resources });
   });
 
-  test("GET /catalog/blueprints maps Kepler failures to 502", async () => {
+  test("GET /catalog/blueprints maps Kepler transport failures to 502", async () => {
     const app = createBackendApp({
       logger: () => {},
       catalog: catalogDependencies({
         listBlueprints: async () => {
-          throw new Error("Kepler request failed with 503: unavailable");
+          throw new Error("Kepler request failed: transport error");
         },
       }),
     });
@@ -126,7 +126,7 @@ describe("catalog routes", () => {
     expect(await response.json()).toEqual({
       error: {
         code: "kepler_request_failed",
-        message: "Kepler request failed with 503: unavailable",
+        message: "Kepler request failed: transport error",
       },
     });
   });
