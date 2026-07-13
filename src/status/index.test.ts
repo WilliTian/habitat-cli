@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { buildHabitatStatus, formatHabitatStatus } from "./index";
+import { buildHabitatStatus, formatHabitatStatus, readHabitatStatus } from "./index";
 import type { HabitatModule } from "../modules/types";
 
 function moduleFixture(input: {
@@ -28,6 +28,26 @@ function moduleFixture(input: {
 }
 
 describe("habitat status", () => {
+  test("reads modules through its injected API adapter", async () => {
+    const modules = [moduleFixture({
+      id: "command",
+      displayName: "Command Module",
+      status: "active",
+      powerDrawKw: 3.6,
+    })];
+
+    const status = await readHabitatStatus({ loadModules: async () => modules });
+
+    expect(status.totalPowerDrawKw).toBe(3.6);
+  });
+
+  test("default adapter imports the Habitat API instead of persistence", async () => {
+    const source = await Bun.file(new URL("./index.ts", import.meta.url)).text();
+
+    expect(source).toContain('from "../api/modules"');
+    expect(source).not.toContain('from "../modules/state"');
+  });
+
   test("shows local module state and power draw for that state", () => {
     const status = buildHabitatStatus([
       moduleFixture({

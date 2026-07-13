@@ -1,5 +1,5 @@
-import { readSolarIrradiance } from "../kepler";
-import { loadModules, saveModules } from "../modules/state";
+import { readModules, replaceModules } from "../api/modules";
+import { readSolarIrradianceResource } from "../api/solar";
 import type { HabitatModule } from "../modules/types";
 import { resolvePowerDrawKw } from "./power";
 import type {
@@ -19,13 +19,14 @@ export { resolvePowerDrawKw } from "./power";
 type PowerTickDependencies = {
   loadModules: () => Promise<HabitatModule[]>;
   saveModules: (modules: HabitatModule[]) => Promise<void>;
-  readSolarIrradiance: typeof readSolarIrradiance;
+  readSolarIrradiance: () => Promise<TickSolarInput>;
 };
 
 const defaultDependencies: PowerTickDependencies = {
-  loadModules,
-  saveModules,
-  readSolarIrradiance,
+  loadModules: async () => (await readModules()).modules,
+  saveModules: async (modules) => { await replaceModules(modules); },
+  readSolarIrradiance: async () =>
+    (await readSolarIrradianceResource()).solarIrradiance,
 };
 
 export async function runPowerTicks(

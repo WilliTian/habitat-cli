@@ -8,12 +8,13 @@ import {
   updateModuleResource,
 } from "../api/modules";
 import { HabitatApiError } from "../api/client";
+import { readHabitatStatus } from "../status/index";
 import {
   formatModule,
   formatModuleSummary,
   formatModuleStatusUpdate,
 } from "./format";
-import { buildHabitatStatus, formatHabitatStatus } from "../status/format";
+import { formatHabitatStatus } from "../status/format";
 import { resolvePowerDrawKw } from "../ticks/power";
 
 const validModuleStatuses = ["offline", "idle", "online", "active", "damaged"] as const;
@@ -26,6 +27,7 @@ export type ModuleCommandDependencies = Partial<{
   readModule: typeof readModule;
   updateModuleResource: typeof updateModuleResource;
   deleteModuleResource: typeof deleteModuleResource;
+  readStatus: typeof readHabitatStatus;
 }>;
 
 type ResolvedModuleCommandDependencies = Required<ModuleCommandDependencies>;
@@ -36,6 +38,7 @@ const defaultDependencies: ResolvedModuleCommandDependencies = {
   readModule,
   updateModuleResource,
   deleteModuleResource,
+  readStatus: readHabitatStatus,
 };
 
 function collectOptionValues(value: string, values: string[]): string[] {
@@ -104,8 +107,7 @@ export function registerModuleCommands(
     .command("status")
     .description("Show local module states and power draw.")
     .action(async () => {
-      const { modules } = await commandDependencies.readModules();
-      console.log(formatHabitatStatus(buildHabitatStatus(modules)));
+      console.log(formatHabitatStatus(await commandDependencies.readStatus()));
     });
 
   moduleCommand

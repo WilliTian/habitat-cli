@@ -4,6 +4,7 @@ import { registerInventoryCommands } from "./inventory/cli";
 import { registerBlueprintCommands } from "./kepler/cli";
 import { registerModuleCommands } from "./modules/cli";
 import { registerRegistrationCommands } from "./registration/cli";
+import { registerPowerCommands } from "./status/cli";
 import { registerTickCommands } from "./ticks/cli";
 
 const program = new Command();
@@ -30,6 +31,7 @@ registerInventoryCommands(program);
 registerBlueprintCommands(program);
 registerConstructCommands(program);
 registerTickCommands(program);
+registerPowerCommands(program);
 
 program.parseAsync().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : "Something went wrong.";

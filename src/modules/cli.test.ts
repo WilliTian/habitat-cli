@@ -2,6 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import { Command } from "commander";
 
 import { requestHabitatApiJson } from "../api/client";
+import { buildHabitatStatus } from "../status/format";
 import { registerModuleCommands } from "./cli";
 import { formatModule, formatModuleStatusUpdate, formatModuleSummary } from "./format";
 import type { HabitatModule } from "./types";
@@ -54,7 +55,7 @@ test("imports API operations and pure helpers without backend-owned modules", as
   expect(source).toContain('from "./format"');
   expect(source).not.toContain('from "./index"');
   expect(source).not.toContain('from "./state"');
-  expect(source).not.toContain('from "../status/index"');
+  expect(source).toContain('from "../status/index"');
   expect(source).not.toContain('from "../ticks/index"');
 });
 
@@ -63,7 +64,9 @@ test("status formats modules read through the API", async () => {
   const logSpy = spyOn(console, "log").mockImplementation(() => {});
   const module = moduleFixture();
 
-  registerModuleCommands(program, { readModules: async () => ({ modules: [module] }) });
+  registerModuleCommands(program, {
+    readStatus: async () => buildHabitatStatus([module]),
+  });
 
   await program.parseAsync(["module", "status"], { from: "user" });
 

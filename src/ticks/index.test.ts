@@ -598,6 +598,15 @@ describe("applyPowerTicks", () => {
 });
 
 describe("runPowerTicks", () => {
+  test("default adapters use Habitat API modules and solar resources", async () => {
+    const source = await Bun.file(new URL("./index.ts", import.meta.url)).text();
+
+    expect(source).toContain('from "../api/modules"');
+    expect(source).toContain('from "../api/solar"');
+    expect(source).not.toContain('from "../kepler"');
+    expect(source).not.toContain('from "../modules/state"');
+  });
+
   test("loads modules, reads solar irradiance, applies ticks, and saves updated modules", async () => {
     const savedModules: HabitatModule[][] = [];
     const modules = [

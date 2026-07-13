@@ -1,4 +1,4 @@
-import { loadModules } from "../modules/state";
+import { readModules } from "../api/modules";
 import type { HabitatModule } from "../modules/types";
 import { buildHabitatStatus } from "./format";
 import type { HabitatStatus } from "./types";
@@ -10,7 +10,7 @@ type HabitatStatusDependencies = {
 };
 
 const defaultDependencies: HabitatStatusDependencies = {
-  loadModules,
+  loadModules: async () => (await readModules()).modules,
 };
 
 export async function readHabitatStatus(
