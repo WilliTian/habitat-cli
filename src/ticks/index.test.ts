@@ -609,6 +609,8 @@ describe("runPowerTicks", () => {
 
   test("loads modules, reads solar irradiance, applies ticks, and saves updated modules", async () => {
     const savedModules: HabitatModule[][] = [];
+    let moduleReads = 0;
+    let solarReads = 0;
     const modules = [
       moduleFixture({
         id: "load",
@@ -639,16 +641,27 @@ describe("runPowerTicks", () => {
     ];
 
     const result = await runPowerTicks(3600, {
-      loadModules: async () => modules,
-      saveModules: async (nextModules) => {
-        savedModules.push(nextModules);
+      readModules: async () => {
+        moduleReads += 1;
+        return { modules };
       },
-      readSolarIrradiance: async () => ({
-        wPerM2: 900,
-        condition: "clear",
-      }),
+      replaceModules: async (nextModules) => {
+        savedModules.push(nextModules);
+        return { modules: nextModules };
+      },
+      readSolarIrradianceResource: async () => {
+        solarReads += 1;
+        return {
+          solarIrradiance: {
+            wPerM2: 900,
+            condition: "clear",
+          },
+        };
+      },
     });
 
+    expect(moduleReads).toBe(1);
+    expect(solarReads).toBe(1);
     expect(result.summary.solarGenerationKw).toBe(4);
     expect(result.summary.netPowerKw).toBe(1);
     expect(savedModules).toHaveLength(1);

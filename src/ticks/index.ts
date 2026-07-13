@@ -17,28 +17,27 @@ const solarEfficiency = 0.5;
 export { resolvePowerDrawKw } from "./power";
 
 type PowerTickDependencies = {
-  loadModules: () => Promise<HabitatModule[]>;
-  saveModules: (modules: HabitatModule[]) => Promise<void>;
-  readSolarIrradiance: () => Promise<TickSolarInput>;
+  readModules: typeof readModules;
+  replaceModules: typeof replaceModules;
+  readSolarIrradianceResource: typeof readSolarIrradianceResource;
 };
 
 const defaultDependencies: PowerTickDependencies = {
-  loadModules: async () => (await readModules()).modules,
-  saveModules: async (modules) => { await replaceModules(modules); },
-  readSolarIrradiance: async () =>
-    (await readSolarIrradianceResource()).solarIrradiance,
+  readModules,
+  replaceModules,
+  readSolarIrradianceResource,
 };
 
 export async function runPowerTicks(
   tickCount: number,
   dependencies: PowerTickDependencies = defaultDependencies,
 ): Promise<PowerTickResult> {
-  const [modules, solarIrradiance] = await Promise.all([
-    dependencies.loadModules(),
-    dependencies.readSolarIrradiance(),
+  const [{ modules }, { solarIrradiance }] = await Promise.all([
+    dependencies.readModules(),
+    dependencies.readSolarIrradianceResource(),
   ]);
   const result = applyPowerTicks({ modules, tickCount, solarIrradiance });
-  await dependencies.saveModules(result.modules);
+  await dependencies.replaceModules(result.modules);
   return result;
 }
 
