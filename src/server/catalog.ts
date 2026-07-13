@@ -5,6 +5,7 @@ import {
   listBlueprints,
   listResources,
 } from "../kepler/index";
+import { KeplerRequestError } from "../kepler/client";
 import { BackendHttpError } from "./errors";
 
 export type CatalogRouteDependencies = {
@@ -50,6 +51,15 @@ export function registerCatalogRoutes(
 
       return context.json({ blueprint });
     } catch (error) {
+      if (error instanceof KeplerRequestError && error.status === 404) {
+        throw new BackendHttpError(
+          404,
+          "blueprint_not_found",
+          `Blueprint "${blueprintId}" was not found.`,
+          { cause: error },
+        );
+      }
+
       throw translateCatalogError(error);
     }
   });

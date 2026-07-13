@@ -16,7 +16,7 @@ rg -n "kepler/client|kepler/state|persistence|modules/state|inventory/state|bun:
 
 Observed results:
 
-- `bun test`: 186 tests passed, 0 failed, across 32 files with 503 expectations.
+- `bun test`: 196 tests passed, 0 failed, across 32 files with 524 expectations.
 - `bun run check`: exited successfully with no TypeScript errors.
 - `git diff --check`: exited successfully with no whitespace errors.
 - The CLI boundary scan printed no matches. CLI entrypoints, simulations, and API adapters do not import Kepler transport, SQLite state, or persistence, and do not issue raw `fetch` calls.
@@ -49,6 +49,8 @@ Observed JSON:
 ```json
 {"registration":null}
 ```
+
+`GET /registration` includes `apiToken` when registration exists, as required by the lab contract. The API has no authentication, so do not set `HABITAT_API_HOST=0.0.0.0` on an untrusted network; any client that can reach the port can read that resource.
 
 ## Read-Only CLI Workflow
 

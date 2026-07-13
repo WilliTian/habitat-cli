@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { createBackendApp } from "./app";
 import type { CatalogRouteDependencies } from "./catalog";
 import type { IndustryResource, ProductionBlueprint } from "../kepler/types";
+import { requestKeplerJson } from "../kepler/client";
 
 function blueprintFixture(
   input: Partial<ProductionBlueprint> = {},
@@ -127,6 +128,34 @@ describe("catalog routes", () => {
       error: {
         code: "kepler_request_failed",
         message: "Kepler request failed: transport error",
+      },
+    });
+  });
+
+  test("GET /catalog/blueprints/:id maps a Kepler 404 to a resource 404", async () => {
+    const app = createBackendApp({
+      logger: () => {},
+      catalog: catalogDependencies({
+        findBlueprint: async () => requestKeplerJson<ProductionBlueprint>(
+          "/catalog/blueprints/missing",
+          {
+            method: "GET",
+            expectedStatus: 200,
+            environment: { KEPLER_PLANET_TOKEN: "secret-token" },
+            fetchImpl: async () => new Response("not found", { status: 404 }),
+            logger: () => {},
+          },
+        ),
+      }),
+    });
+
+    const response = await app.request("/catalog/blueprints/missing");
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "blueprint_not_found",
+        message: 'Blueprint "missing" was not found.',
       },
     });
   });

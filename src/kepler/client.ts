@@ -13,6 +13,21 @@ type KeplerRequestOptions = {
   logger?: RequestLogger;
 };
 
+export class KeplerRequestError extends Error {
+  readonly path: string;
+  readonly status?: number;
+
+  constructor(
+    message: string,
+    input: { path: string; status?: number; cause?: unknown },
+  ) {
+    super(message, { cause: input.cause });
+    this.name = "KeplerRequestError";
+    this.path = input.path;
+    this.status = input.status;
+  }
+}
+
 function getBaseUrl(environment: KeplerEnvironment = process.env): string {
   const rawBaseUrl = environment.KEPLER_BASE_URL?.trim();
 
@@ -71,8 +86,11 @@ export async function requestKeplerJson<T>(
 
   try {
     response = await fetchImpl(url.toString(), requestInit);
-  } catch {
-    throw new Error("Kepler request failed: transport error");
+  } catch (error) {
+    throw new KeplerRequestError("Kepler request failed: transport error", {
+      cause: error,
+      path: url.pathname,
+    });
   }
 
   logger(`Kepler ${options.method} ${url.pathname} ${response.status}`);
@@ -81,12 +99,22 @@ export async function requestKeplerJson<T>(
 
   if (response.status !== options.expectedStatus) {
     const suffix = responseText.trim().length > 0 ? `: ${responseText.trim()}` : "";
-    throw new Error(`Kepler request failed with ${response.status}${suffix}`);
+    throw new KeplerRequestError(
+      `Kepler request failed with ${response.status}${suffix}`,
+      { path: url.pathname, status: response.status },
+    );
   }
 
   if (responseText.trim().length === 0) {
     return undefined as T;
   }
 
-  return JSON.parse(responseText) as T;
+  try {
+    return JSON.parse(responseText) as T;
+  } catch (error) {
+    throw new KeplerRequestError(
+      `Kepler request failed: invalid JSON response for ${url.pathname}`,
+      { cause: error, path: url.pathname, status: response.status },
+    );
+  }
 }

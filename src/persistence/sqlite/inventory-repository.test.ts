@@ -34,4 +34,21 @@ describe("inventory sqlite repository", () => {
       },
     ]);
   });
+
+  test("rolls back a failed collection replacement", () => {
+    const database = openHabitatDatabase(":memory:");
+    const original = {
+      resourceType: "water",
+      quantity: 4.5,
+      updatedAt: "2026-07-10T00:00:00.000Z",
+    };
+    saveInventoryToSqlite(database, [original]);
+
+    expect(() => saveInventoryToSqlite(database, [
+      { ...original, resourceType: "steel" },
+      { ...original, resourceType: "steel", quantity: 8 },
+    ])).toThrow();
+
+    expect(loadInventoryFromSqlite(database)).toEqual([original]);
+  });
 });

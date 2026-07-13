@@ -34,4 +34,32 @@ describe("module sqlite repository", () => {
       },
     ]);
   });
+
+  test("rolls back a failed collection replacement", () => {
+    const database = openHabitatDatabase(":memory:");
+    const original = {
+      id: "module-1",
+      blueprintId: "command-module",
+      displayName: "Command Module",
+      connectedTo: [],
+      runtimeAttributes: { status: "online" },
+      capabilities: [],
+      source: "local" as const,
+      createdAt: "2026-07-10T00:00:00.000Z",
+      updatedAt: "2026-07-10T00:00:00.000Z",
+    };
+    saveModulesToSqlite(database, [original]);
+
+    const replacement = {
+      ...original,
+      id: "module-2",
+      displayName: "Replacement Module",
+    };
+    expect(() => saveModulesToSqlite(database, [
+      replacement,
+      { ...replacement, displayName: "Duplicate" },
+    ])).toThrow();
+
+    expect(loadModulesFromSqlite(database)).toEqual([original]);
+  });
 });

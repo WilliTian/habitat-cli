@@ -119,4 +119,45 @@ describe("inventory routes", () => {
     expect(response.status).toBe(400);
     expect(saved).toHaveLength(0);
   });
+
+  test("PUT /inventory rejects duplicate resource types before saving", async () => {
+    const saved: HabitatInventoryResource[][] = [];
+    const app = createBackendApp({
+      logger: () => {},
+      inventory: dependencies({ saveInventory: async (value) => { saved.push(value); } }),
+    });
+
+    const response = await app.request(
+      "/inventory",
+      jsonRequest("PUT", { inventory: [resource, { ...resource, quantity: 5 }] }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(saved).toHaveLength(0);
+  });
+
+  test("serializes concurrent inventory mutations", async () => {
+    let quantity = 0;
+    const app = createBackendApp({
+      logger: () => {},
+      inventory: dependencies({
+        adjustInventoryResource: async ({ quantityDelta }) => {
+          const previousQuantity = quantity;
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          quantity = previousQuantity + quantityDelta;
+          return { ...resource, quantity };
+        },
+      }),
+    });
+
+    const responses = await Promise.all(
+      Array.from({ length: 10 }, () => app.request(
+        "/inventory/steel",
+        jsonRequest("PATCH", { quantityDelta: 1 }),
+      )),
+    );
+
+    expect(responses.every((response) => response.status === 200)).toBe(true);
+    expect(quantity).toBe(10);
+  });
 });

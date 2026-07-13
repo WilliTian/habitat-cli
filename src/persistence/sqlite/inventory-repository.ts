@@ -1,6 +1,7 @@
 import type { Database } from "bun:sqlite";
 
 import type { HabitatInventoryResource } from "../../inventory/types";
+import { withTransaction } from "./index";
 import type { InventoryRow } from "./types";
 
 export function loadInventoryFromSqlite(database: Database): HabitatInventoryResource[] {
@@ -23,14 +24,16 @@ export function loadInventoryFromSqlite(database: Database): HabitatInventoryRes
 }
 
 export function saveInventoryToSqlite(database: Database, resources: HabitatInventoryResource[]): void {
-  database.exec("DELETE FROM inventory_resources");
-  const insert = database.query(
-    "INSERT INTO inventory_resources (resource_type, quantity, unit, updated_at) VALUES (?, ?, ?, ?)",
-  );
+  withTransaction(database, () => {
+    database.exec("DELETE FROM inventory_resources");
+    const insert = database.query(
+      "INSERT INTO inventory_resources (resource_type, quantity, unit, updated_at) VALUES (?, ?, ?, ?)",
+    );
 
-  for (const resource of resources) {
-    insert.run(resource.resourceType, resource.quantity, resource.unit ?? null, resource.updatedAt);
-  }
+    for (const resource of resources) {
+      insert.run(resource.resourceType, resource.quantity, resource.unit ?? null, resource.updatedAt);
+    }
+  });
 }
 
 export function deleteInventoryFromSqlite(database: Database): void {

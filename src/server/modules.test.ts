@@ -210,4 +210,89 @@ describe("module routes", () => {
     expect(replaceResponse.status).toBe(400);
     expect(createResponse.status).toBe(400);
   });
+
+  test("module routes reject invalid field schemas before mutation", async () => {
+    let mutationCount = 0;
+    const app = createBackendApp({
+      logger: () => {},
+      modules: moduleDependencies({
+        saveModules: async () => { mutationCount += 1; },
+        createModule: async () => {
+          mutationCount += 1;
+          return moduleFixture();
+        },
+        updateModuleByPrefix: async () => {
+          mutationCount += 1;
+          return moduleFixture();
+        },
+      }),
+    });
+
+    const replaceResponse = await app.request(
+      "/modules",
+      jsonRequest("PUT", { modules: [moduleFixture({ runtimeAttributes: "bad" as never })] }),
+    );
+    const createResponse = await app.request(
+      "/modules",
+      jsonRequest("POST", {
+        blueprintId: "command-module",
+        displayName: "Command Module",
+        connectedTo: "module-2",
+      }),
+    );
+    const updateResponse = await app.request(
+      "/modules/module-12",
+      jsonRequest("PATCH", { capabilities: [1] }),
+    );
+
+    expect(replaceResponse.status).toBe(400);
+    expect(createResponse.status).toBe(400);
+    expect(updateResponse.status).toBe(400);
+    expect(mutationCount).toBe(0);
+  });
+
+  test("PUT /modules rejects duplicate module ids", async () => {
+    let saved = false;
+    const module = moduleFixture();
+    const app = createBackendApp({
+      logger: () => {},
+      modules: moduleDependencies({ saveModules: async () => { saved = true; } }),
+    });
+
+    const response = await app.request(
+      "/modules",
+      jsonRequest("PUT", { modules: [module, { ...module, displayName: "Duplicate" }] }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(saved).toBe(false);
+  });
+
+  test("serializes concurrent module mutations", async () => {
+    let createdCount = 0;
+    const app = createBackendApp({
+      logger: () => {},
+      modules: moduleDependencies({
+        createModule: async () => {
+          const previousCount = createdCount;
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          createdCount = previousCount + 1;
+          return moduleFixture({ id: `module-${createdCount}` });
+        },
+      }),
+    });
+
+    const responses = await Promise.all(
+      Array.from({ length: 10 }, () => app.request(
+        "/modules",
+        jsonRequest("POST", {
+          blueprintId: "command-module",
+          displayName: "Command Module",
+        }),
+      )),
+    );
+
+    expect(responses.every((response) => response.status === 201)).toBe(true);
+    expect(createdCount).toBe(10);
+  });
 });

@@ -2,6 +2,7 @@ import type { Database } from "bun:sqlite";
 
 import type { ProductionBlueprint, StarterModuleInstance } from "../../kepler/types";
 import type { HabitatModule, ModuleRuntimeAttributes } from "../../modules/types";
+import { withTransaction } from "./index";
 import type { ModuleCapabilityRow, ModuleConnectionRow, ModuleRow } from "./types";
 
 function hydrateRuntimeAttributes(value: string): ModuleRuntimeAttributes {
@@ -56,49 +57,51 @@ export function loadModulesFromSqlite(database: Database): HabitatModule[] {
 }
 
 export function saveModulesToSqlite(database: Database, modules: HabitatModule[]): void {
-  database.exec("DELETE FROM module_connections");
-  database.exec("DELETE FROM module_capabilities");
-  database.exec("DELETE FROM modules");
+  withTransaction(database, () => {
+    database.exec("DELETE FROM module_connections");
+    database.exec("DELETE FROM module_capabilities");
+    database.exec("DELETE FROM modules");
 
-  const insertModule = database.query(
-    `
-    INSERT INTO modules (
-      id,
-      sort_index,
-      blueprint_id,
-      display_name,
-      source,
-      runtime_attributes_json,
-      created_at,
-      updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-  );
-  const insertConnection = database.query(
-    "INSERT INTO module_connections (module_id, position, connected_to_module_id) VALUES (?, ?, ?)",
-  );
-  const insertCapability = database.query(
-    "INSERT INTO module_capabilities (module_id, position, capability) VALUES (?, ?, ?)",
-  );
-
-  modules.forEach((module, index) => {
-    insertModule.run(
-      module.id,
-      index,
-      module.blueprintId,
-      module.displayName,
-      module.source,
-      JSON.stringify(module.runtimeAttributes),
-      module.createdAt,
-      module.updatedAt,
+    const insertModule = database.query(
+      `
+      INSERT INTO modules (
+        id,
+        sort_index,
+        blueprint_id,
+        display_name,
+        source,
+        runtime_attributes_json,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+    );
+    const insertConnection = database.query(
+      "INSERT INTO module_connections (module_id, position, connected_to_module_id) VALUES (?, ?, ?)",
+    );
+    const insertCapability = database.query(
+      "INSERT INTO module_capabilities (module_id, position, capability) VALUES (?, ?, ?)",
     );
 
-    module.connectedTo.forEach((connectedToModuleId, position) => {
-      insertConnection.run(module.id, position, connectedToModuleId);
-    });
+    modules.forEach((module, index) => {
+      insertModule.run(
+        module.id,
+        index,
+        module.blueprintId,
+        module.displayName,
+        module.source,
+        JSON.stringify(module.runtimeAttributes),
+        module.createdAt,
+        module.updatedAt,
+      );
 
-    module.capabilities.forEach((capability, position) => {
-      insertCapability.run(module.id, position, capability);
+      module.connectedTo.forEach((connectedToModuleId, position) => {
+        insertConnection.run(module.id, position, connectedToModuleId);
+      });
+
+      module.capabilities.forEach((capability, position) => {
+        insertCapability.run(module.id, position, capability);
+      });
     });
   });
 }

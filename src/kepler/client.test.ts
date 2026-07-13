@@ -63,6 +63,24 @@ describe("Kepler client", () => {
     });
 
     await expect(request).rejects.toThrow("Kepler request failed with 503: unavailable");
+    await expect(request).rejects.toMatchObject({
+      name: "KeplerRequestError",
+      status: 503,
+    });
+  });
+
+  test("wraps malformed successful JSON with request context", async () => {
+    const request = requestKeplerJson("/catalog/blueprints", {
+      method: "GET",
+      expectedStatus: 200,
+      environment: { KEPLER_PLANET_TOKEN: "secret-token" },
+      fetchImpl: async () => new Response("not-json", { status: 200 }),
+      logger: () => {},
+    });
+
+    await expect(request).rejects.toThrow(
+      "Kepler request failed: invalid JSON response for /catalog/blueprints",
+    );
   });
 
   test("preserves token validation errors outside the transport boundary", async () => {

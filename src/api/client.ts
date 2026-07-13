@@ -95,7 +95,13 @@ export async function requestHabitatApiJson<T>(
     return undefined as T;
   }
 
-  return JSON.parse(responseText) as T;
+  try {
+    return JSON.parse(responseText) as T;
+  } catch (error) {
+    throw new Error(`Habitat API returned invalid JSON for ${normalizeApiPath(path)}.`, {
+      cause: error,
+    });
+  }
 }
 
 async function createHabitatApiError(

@@ -98,4 +98,12 @@ describe("api client", () => {
       'Could not reach the Habitat API at http://localhost:8787. Start the server with "bun run server" and try again.',
     );
   });
+
+  test("turns malformed successful JSON into a friendly CLI error", async () => {
+    await expect(
+      requestHabitatApiJson("/modules", {
+        fetchImpl: async () => new Response("not-json", { status: 200 }),
+      }),
+    ).rejects.toThrow("Habitat API returned invalid JSON for /modules.");
+  });
 });

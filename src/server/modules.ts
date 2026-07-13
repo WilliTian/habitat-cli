@@ -14,6 +14,7 @@ import type {
   HabitatModuleUpdateInput,
 } from "../modules/types";
 import { BackendHttpError } from "./errors";
+import { createMutationQueue } from "./mutation-queue";
 
 export type ModuleRouteDependencies = {
   listModules: typeof listModules;
@@ -38,6 +39,7 @@ export function registerModuleRoutes(
   dependencies: ModuleRouteDependencies = defaultDependencies,
 ): void {
   const routeDependencies = { ...defaultDependencies, ...dependencies };
+  const runMutation = createMutationQueue();
 
   app.get("/modules", async (context) => {
     try {
@@ -52,19 +54,23 @@ export function registerModuleRoutes(
     const modules = await readModulesInput(context.req.json());
 
     try {
-      await routeDependencies.saveModules(modules);
-      return context.json({ modules });
+      return await runMutation(async () => {
+        await routeDependencies.saveModules(modules);
+        return context.json({ modules });
+      });
     } catch (error) {
       throw translateModuleError(error);
     }
   });
 
   app.post("/modules", async (context) => {
-    const input = await readModuleInput<HabitatModuleCreateInput>(context.req.json());
+    const input = await readModuleCreateInput(context.req.json());
 
     try {
-      const module = await routeDependencies.createModule(input);
-      return context.json({ module }, 201);
+      return await runMutation(async () => {
+        const module = await routeDependencies.createModule(input);
+        return context.json({ module }, 201);
+      });
     } catch (error) {
       throw translateModuleError(error);
     }
@@ -87,11 +93,13 @@ export function registerModuleRoutes(
 
   app.patch("/modules/:id", async (context) => {
     const prefix = context.req.param("id");
-    const input = await readModuleInput<HabitatModuleUpdateInput>(context.req.json());
+    const input = await readModuleUpdateInput(context.req.json());
 
     try {
-      const module = await routeDependencies.updateModuleByPrefix(prefix, input);
-      return context.json({ module });
+      return await runMutation(async () => {
+        const module = await routeDependencies.updateModuleByPrefix(prefix, input);
+        return context.json({ module });
+      });
     } catch (error) {
       throw translateModuleError(error);
     }
@@ -101,13 +109,15 @@ export function registerModuleRoutes(
     const prefix = context.req.param("id");
 
     try {
-      const module = await routeDependencies.findModuleByPrefix(prefix);
-      if (!module) {
-        throw moduleNotFoundError(prefix);
-      }
+      return await runMutation(async () => {
+        const module = await routeDependencies.findModuleByPrefix(prefix);
+        if (!module) {
+          throw moduleNotFoundError(prefix);
+        }
 
-      await routeDependencies.deleteModule(module.id);
-      return context.json({ module });
+        await routeDependencies.deleteModule(module.id);
+        return context.json({ module });
+      });
     } catch (error) {
       throw translateModuleError(error);
     }
@@ -117,25 +127,44 @@ export function registerModuleRoutes(
 async function readModulesInput(json: Promise<unknown>): Promise<HabitatModule[]> {
   const body = await readJsonBody(json);
 
-  if (!isObject(body) || !Array.isArray(body.modules) || !body.modules.every(isObject)) {
+  if (
+    !isObject(body) ||
+    !Array.isArray(body.modules) ||
+    !body.modules.every(isHabitatModule) ||
+    new Set(body.modules.map((module) => module.id)).size !== body.modules.length
+  ) {
     throw new BackendHttpError(
       400,
       "invalid_modules",
-      "modules must be an array of module objects.",
+      "modules must be an array of valid modules with unique ids.",
     );
   }
 
-  return body.modules as HabitatModule[];
+  return body.modules;
 }
 
-async function readModuleInput<T>(json: Promise<unknown>): Promise<T> {
+async function readModuleCreateInput(
+  json: Promise<unknown>,
+): Promise<HabitatModuleCreateInput> {
   const body = await readJsonBody(json);
 
-  if (!isObject(body)) {
-    throw new BackendHttpError(400, "invalid_module", "Request body must be a module object.");
+  if (!isModuleCreateInput(body)) {
+    throw invalidModuleError();
   }
 
-  return body as T;
+  return body;
+}
+
+async function readModuleUpdateInput(
+  json: Promise<unknown>,
+): Promise<HabitatModuleUpdateInput> {
+  const body = await readJsonBody(json);
+
+  if (!isModuleUpdateInput(body)) {
+    throw invalidModuleError();
+  }
+
+  return body;
 }
 
 async function readJsonBody(json: Promise<unknown>): Promise<unknown> {
@@ -148,6 +177,73 @@ async function readJsonBody(json: Promise<unknown>): Promise<unknown> {
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isHabitatModule(value: unknown): value is HabitatModule {
+  return (
+    isObject(value) &&
+    isNonEmptyString(value.id) &&
+    isNonEmptyString(value.blueprintId) &&
+    isNonEmptyString(value.displayName) &&
+    isStringArray(value.connectedTo) &&
+    isObject(value.runtimeAttributes) &&
+    isStringArray(value.capabilities) &&
+    (value.source === "starter" || value.source === "local") &&
+    isNonEmptyString(value.createdAt) &&
+    isNonEmptyString(value.updatedAt)
+  );
+}
+
+function isModuleCreateInput(value: unknown): value is HabitatModuleCreateInput {
+  return (
+    isObject(value) &&
+    isNonEmptyString(value.blueprintId) &&
+    isNonEmptyString(value.displayName) &&
+    isOptionalStringArray(value.connectedTo) &&
+    isOptionalObject(value.runtimeAttributes) &&
+    isOptionalStringArray(value.capabilities)
+  );
+}
+
+function isModuleUpdateInput(value: unknown): value is HabitatModuleUpdateInput {
+  return (
+    isObject(value) &&
+    isOptionalNonEmptyString(value.blueprintId) &&
+    isOptionalNonEmptyString(value.displayName) &&
+    isOptionalStringArray(value.connectedTo) &&
+    isOptionalObject(value.runtimeAttributes) &&
+    isOptionalStringArray(value.capabilities)
+  );
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isOptionalNonEmptyString(value: unknown): value is string | undefined {
+  return value === undefined || isNonEmptyString(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(isNonEmptyString);
+}
+
+function isOptionalStringArray(value: unknown): value is string[] | undefined {
+  return value === undefined || isStringArray(value);
+}
+
+function isOptionalObject(
+  value: unknown,
+): value is Record<string, unknown> | undefined {
+  return value === undefined || isObject(value);
+}
+
+function invalidModuleError(): BackendHttpError {
+  return new BackendHttpError(
+    400,
+    "invalid_module",
+    "Request body contains invalid module fields.",
+  );
 }
 
 function translateModuleError(error: unknown): Error {

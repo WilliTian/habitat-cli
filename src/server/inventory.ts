@@ -7,6 +7,7 @@ import {
 import { saveInventory } from "../inventory/state";
 import type { HabitatInventoryResource } from "../inventory/types";
 import { BackendHttpError } from "./errors";
+import { createMutationQueue } from "./mutation-queue";
 
 export type InventoryRouteDependencies = {
   listInventory: typeof listInventory;
@@ -25,6 +26,7 @@ export function registerInventoryRoutes(
   dependencies: InventoryRouteDependencies = defaultDependencies,
 ): void {
   const routeDependencies = { ...defaultDependencies, ...dependencies };
+  const runMutation = createMutationQueue();
 
   app.get("/inventory", async (context) => {
     const inventory = await routeDependencies.listInventory();
@@ -33,19 +35,23 @@ export function registerInventoryRoutes(
 
   app.put("/inventory", async (context) => {
     const inventory = await readInventoryCollection(context.req.json());
-    await routeDependencies.saveInventory(inventory);
-    return context.json({ inventory });
+    return runMutation(async () => {
+      await routeDependencies.saveInventory(inventory);
+      return context.json({ inventory });
+    });
   });
 
   app.patch("/inventory/:resourceType", async (context) => {
     const input = await readAdjustment(context.req.json());
 
     try {
-      const resource = await routeDependencies.adjustInventoryResource({
-        resourceType: context.req.param("resourceType"),
-        ...input,
+      return await runMutation(async () => {
+        const resource = await routeDependencies.adjustInventoryResource({
+          resourceType: context.req.param("resourceType"),
+          ...input,
+        });
+        return context.json({ resource });
       });
-      return context.json({ resource });
     } catch (error) {
       throw translateInventoryError(error);
     }
@@ -60,7 +66,8 @@ async function readInventoryCollection(
   if (
     !isObject(body) ||
     !Array.isArray(body.inventory) ||
-    !body.inventory.every(isInventoryResource)
+    !body.inventory.every(isInventoryResource) ||
+    !hasUniqueResourceTypes(body.inventory)
   ) {
     throw new BackendHttpError(
       400,
@@ -70,6 +77,10 @@ async function readInventoryCollection(
   }
 
   return body.inventory as HabitatInventoryResource[];
+}
+
+function hasUniqueResourceTypes(resources: HabitatInventoryResource[]): boolean {
+  return new Set(resources.map((resource) => resource.resourceType)).size === resources.length;
 }
 
 async function readAdjustment(json: Promise<unknown>): Promise<{
