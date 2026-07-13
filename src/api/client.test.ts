@@ -65,6 +65,26 @@ describe("api client", () => {
     );
   });
 
+  test("extracts a nested backend error message", async () => {
+    await expect(
+      requestHabitatApiJson("/modules", {
+        fetchImpl: async () =>
+          new Response(
+            JSON.stringify({
+              error: { code: "module_not_found", message: "Module not found." },
+            }),
+            { status: 404 },
+          ),
+      }),
+    ).rejects.toEqual(
+      new HabitatApiError({
+        message: "Habitat API request failed for /modules: Module not found.",
+        path: "/modules",
+        status: 404,
+      }),
+    );
+  });
+
   test("turns connection failures into a startup hint", async () => {
     await expect(
       requestHabitatApiJson("/registration", {

@@ -1,7 +1,20 @@
 const defaultBaseUrl = "https://planet.turingguild.com";
 
-function getBaseUrl(): string {
-  const rawBaseUrl = process.env.KEPLER_BASE_URL?.trim();
+type KeplerEnvironment = NodeJS.ProcessEnv;
+
+type RequestLogger = (message: string) => void;
+
+type KeplerRequestOptions = {
+  method: "GET" | "POST" | "DELETE";
+  body?: unknown;
+  expectedStatus: number;
+  environment?: KeplerEnvironment;
+  fetchImpl?: typeof fetch;
+  logger?: RequestLogger;
+};
+
+function getBaseUrl(environment: KeplerEnvironment = process.env): string {
+  const rawBaseUrl = environment.KEPLER_BASE_URL?.trim();
 
   if (!rawBaseUrl) {
     return defaultBaseUrl;
@@ -10,11 +23,13 @@ function getBaseUrl(): string {
   return rawBaseUrl.replace(/\/+$/, "");
 }
 
-export function readKeplerApiToken(): string {
+export function readKeplerApiToken(
+  environment: KeplerEnvironment = process.env,
+): string {
   const token =
-    process.env.KEPLER_PLANET_TOKEN?.trim() ??
-    process.env.KEPLER_WORLD_TOKEN?.trim() ??
-    process.env.PLANET_TOKEN?.trim();
+    environment.KEPLER_PLANET_TOKEN?.trim() ??
+    environment.KEPLER_WORLD_TOKEN?.trim() ??
+    environment.PLANET_TOKEN?.trim();
 
   if (!token) {
     throw new Error(
@@ -35,21 +50,25 @@ export function tryReadKeplerApiToken(): string | undefined {
 
 export async function requestKeplerJson<T>(
   path: string,
-  options: {
-    method: "GET" | "POST" | "DELETE";
-    body?: unknown;
-    expectedStatus: number;
-  },
+  options: KeplerRequestOptions,
 ): Promise<T> {
-  const response = await fetch(`${getBaseUrl()}${path}`, {
+  const url = new URL(`${getBaseUrl(options.environment)}${path}`);
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const logger = options.logger ?? console.log;
+
+  logger(`Kepler ${options.method} ${url.pathname} outbound`);
+
+  const response = await fetchImpl(url.toString(), {
     method: options.method,
     headers: {
-      Authorization: `Bearer ${readKeplerApiToken()}`,
+      Authorization: `Bearer ${readKeplerApiToken(options.environment)}`,
       Accept: "application/json",
       ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
     },
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
+
+  logger(`Kepler ${options.method} ${url.pathname} ${response.status}`);
 
   const responseText = await response.text();
 

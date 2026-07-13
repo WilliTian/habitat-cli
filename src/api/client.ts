@@ -18,6 +18,10 @@ type ErrorResponseBody = {
   details?: unknown;
 };
 
+type NestedErrorResponse = {
+  message?: unknown;
+};
+
 export class HabitatApiError extends Error {
   readonly status: number;
   readonly path: string;
@@ -114,11 +118,24 @@ function extractErrorMessage(responseText: string): string | undefined {
 
   try {
     const body = JSON.parse(trimmed) as ErrorResponseBody;
-    const message = firstString(body.error, body.message, body.details);
+    const message = firstString(
+      body.error,
+      readNestedErrorMessage(body.error),
+      body.message,
+      body.details,
+    );
     return message?.trim() || trimmed;
   } catch {
     return trimmed;
   }
+}
+
+function readNestedErrorMessage(error: unknown): unknown {
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+
+  return (error as NestedErrorResponse).message;
 }
 
 function firstString(...values: unknown[]): string | undefined {
