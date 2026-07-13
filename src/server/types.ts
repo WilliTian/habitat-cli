@@ -1,3 +1,5 @@
+import type { KeplerHabitatState } from "../kepler/types";
+
 export type RegistrationResource = {
   registration: {
     habitatUuid: string;
@@ -5,4 +7,12 @@ export type RegistrationResource = {
     displayName: string;
     apiToken: string | null;
   } | null;
+};
+
+export type RegistrationStateResource = {
+  registration: KeplerHabitatState;
+};
+
+export type UnregisterResource = RegistrationStateResource & {
+  remoteHabitatDeleted: boolean;
 };

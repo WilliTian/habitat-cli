@@ -1,15 +1,9 @@
 import { Command } from "commander";
-import {
-  formatKeplerHabitat,
-  formatUnregisterKeplerHabitatResult,
-  readKeplerHabitatStatus,
-  registerKeplerHabitat,
-  unregisterKeplerHabitat,
-} from "./kepler/index";
 import { registerConstructCommands } from "./construct/cli";
 import { registerInventoryCommands } from "./inventory/cli";
 import { registerBlueprintCommands } from "./kepler/cli";
 import { registerModuleCommands } from "./modules/cli";
+import { registerRegistrationCommands } from "./registration/cli";
 import { registerTickCommands } from "./ticks/cli";
 
 const program = new Command();
@@ -30,46 +24,12 @@ Bun:
 `,
   );
 
-program
-  .command("register")
-  .description("Register this habitat with Kepler.")
-  .requiredOption("--name <name>", "Habitat display name")
-  .action(async (options: { name: string }) => {
-    const keplerHabitat = await registerKeplerHabitat({
-      displayName: options.name,
-    });
-
-    console.log(`Registered habitat "${keplerHabitat.displayName}".`);
-    console.log(formatKeplerHabitat(keplerHabitat));
-  });
-
-program
-  .command("status")
-  .description("Show the saved Kepler habitat registration and current status.")
-  .action(async () => {
-    const keplerHabitat = await readKeplerHabitatStatus();
-
-    if (!keplerHabitat) {
-      console.error("No Kepler habitat registration was found.");
-      process.exit(1);
-    }
-
-    console.log(formatKeplerHabitat(keplerHabitat));
-  });
-
+registerRegistrationCommands(program);
 registerModuleCommands(program);
 registerInventoryCommands(program);
 registerBlueprintCommands(program);
 registerConstructCommands(program);
 registerTickCommands(program);
-
-program
-  .command("unregister")
-  .description("Delete the registered habitat from Kepler.")
-  .action(async () => {
-    const result = await unregisterKeplerHabitat();
-    console.log(formatUnregisterKeplerHabitatResult(result));
-  });
 
 program.parseAsync().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : "Something went wrong.";
