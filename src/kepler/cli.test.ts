@@ -2,7 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import { Command } from "commander";
 
 import { registerBlueprintCommands } from "./cli";
-import * as kepler from "./index";
+import { formatBlueprint, formatSolarIrradianceStatus } from "./format";
 
 describe("blueprint cli", () => {
   test("registers blueprint list command", () => {
@@ -30,7 +30,7 @@ describe("blueprint cli", () => {
   test("prints blueprint list as a two-column table", async () => {
     const program = new Command();
     const logSpy = spyOn(console, "log").mockImplementation(() => {});
-    const listBlueprintsSpy = spyOn(kepler, "listBlueprints").mockResolvedValue([
+    const readBlueprintCatalog = async () => ({ blueprints: [
       {
         id: "survey-rover",
         blueprintId: "survey-rover",
@@ -53,13 +53,12 @@ describe("blueprint cli", () => {
         buildTicks: 60,
         repeatable: true,
       },
-    ]);
+    ] });
 
-    registerBlueprintCommands(program);
+    registerBlueprintCommands(program, { readBlueprintCatalog });
 
     await program.parseAsync(["node", "habitat", "blueprint", "list"]);
 
-    expect(listBlueprintsSpy).toHaveBeenCalled();
     expect(logSpy).toHaveBeenCalledWith(
       [
         "BLUEPRINT ID    DISPLAY NAME",
@@ -68,7 +67,32 @@ describe("blueprint cli", () => {
       ].join("\n"),
     );
 
-    listBlueprintsSpy.mockRestore();
+    logSpy.mockRestore();
+  });
+
+  test("prints one blueprint with the existing detail formatter", async () => {
+    const program = new Command();
+    const logSpy = spyOn(console, "log").mockImplementation(() => {});
+    const blueprint = {
+      id: "small-solar-array",
+      blueprintId: "small-solar-array",
+      displayName: "Small Solar Array",
+      description: "Collects solar energy.",
+      status: "published" as const,
+      output: {},
+      inputs: {},
+      buildTicks: 120,
+      repeatable: true,
+    };
+
+    registerBlueprintCommands(program, {
+      readBlueprint: async () => ({ blueprint }),
+    });
+
+    await program.parseAsync(["node", "habitat", "blueprint", "show", "small-solar-array"]);
+
+    expect(logSpy).toHaveBeenCalledWith(formatBlueprint(blueprint));
+
     logSpy.mockRestore();
   });
 });
@@ -89,7 +113,7 @@ describe("resource cli", () => {
   test("prints resource list as a four-column table", async () => {
     const program = new Command();
     const logSpy = spyOn(console, "log").mockImplementation(() => {});
-    const listResourcesSpy = spyOn(kepler, "listResources").mockResolvedValue([
+    const readResourceCatalog = async () => ({ resources: [
       {
         id: "water-ice",
         resourceType: "water-ice",
@@ -106,13 +130,12 @@ describe("resource cli", () => {
         rarity: "uncommon",
         amount: 12,
       },
-    ]);
+    ] });
 
-    registerBlueprintCommands(program);
+    registerBlueprintCommands(program, { readResourceCatalog });
 
     await program.parseAsync(["node", "habitat", "resource", "list"]);
 
-    expect(listResourcesSpy).toHaveBeenCalled();
     expect(logSpy).toHaveBeenCalledWith(
       [
         "RESOURCE TYPE   DISPLAY NAME   KIND       AMOUNT   RARITY",
@@ -121,14 +144,13 @@ describe("resource cli", () => {
       ].join("\n"),
     );
 
-    listResourcesSpy.mockRestore();
     logSpy.mockRestore();
   });
 });
 
 describe("solar cli", () => {
   test("formats solar status in beginner-friendly language", () => {
-    const output = kepler.formatSolarIrradianceStatus({
+    const output = formatSolarIrradianceStatus({
       wPerM2: 900,
       condition: "clear",
     });
@@ -156,16 +178,15 @@ describe("solar cli", () => {
   test("prints current solar status", async () => {
     const program = new Command();
     const logSpy = spyOn(console, "log").mockImplementation(() => {});
-    const readSolarIrradianceSpy = spyOn(kepler, "readSolarIrradiance").mockResolvedValue({
+    const readSolarIrradianceResource = async () => ({ solarIrradiance: {
       wPerM2: 250,
       condition: "dust",
-    });
+    } });
 
-    registerBlueprintCommands(program);
+    registerBlueprintCommands(program, { readSolarIrradianceResource });
 
     await program.parseAsync(["node", "habitat", "solar", "status"]);
 
-    expect(readSolarIrradianceSpy).toHaveBeenCalled();
     expect(logSpy).toHaveBeenCalledWith(
       [
         "Sunlight is dusty right now.",
@@ -173,7 +194,6 @@ describe("solar cli", () => {
       ].join("\n"),
     );
 
-    readSolarIrradianceSpy.mockRestore();
     logSpy.mockRestore();
   });
 });

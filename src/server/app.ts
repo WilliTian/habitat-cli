@@ -5,11 +5,21 @@ import {
   registerRegistrationRoutes,
   type RegistrationRouteDependencies,
 } from "./registration";
+import {
+  registerCatalogRoutes,
+  type CatalogRouteDependencies,
+} from "./catalog";
+import {
+  registerSolarRoutes,
+  type SolarRouteDependencies,
+} from "./solar";
 
 type RequestLogger = (message: string) => void;
 
 export type BackendAppDependencies = {
   registration?: RegistrationRouteDependencies;
+  catalog?: CatalogRouteDependencies;
+  solar?: SolarRouteDependencies;
   logger?: RequestLogger;
 };
 
@@ -26,6 +36,8 @@ export function createBackendApp(
   app.onError(backendErrorHandler);
 
   registerRegistrationRoutes(app, dependencies.registration);
+  registerCatalogRoutes(app, dependencies.catalog);
+  registerSolarRoutes(app, dependencies.solar);
 
   return app;
 }

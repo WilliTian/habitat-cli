@@ -1,43 +1,71 @@
 import { Command } from "commander";
 
 import {
-  findBlueprint,
+  readBlueprint,
+  readBlueprintCatalog,
+  readResourceCatalog,
+} from "../api/catalog";
+import { readSolarIrradianceResource } from "../api/solar";
+import {
   formatBlueprint,
   formatBlueprintTable,
   formatResourceTable,
   formatSolarIrradianceStatus,
-  listBlueprints,
-  listResources,
-  readSolarIrradiance,
-} from "./index";
+} from "./format";
 
-async function printBlueprintList(): Promise<void> {
-  const blueprints = await listBlueprints();
+export type BlueprintCommandDependencies = Partial<{
+  readBlueprintCatalog: typeof readBlueprintCatalog;
+  readBlueprint: typeof readBlueprint;
+  readResourceCatalog: typeof readResourceCatalog;
+  readSolarIrradianceResource: typeof readSolarIrradianceResource;
+}>;
+
+type ResolvedBlueprintCommandDependencies = Required<BlueprintCommandDependencies>;
+
+const defaultDependencies: ResolvedBlueprintCommandDependencies = {
+  readBlueprintCatalog,
+  readBlueprint,
+  readResourceCatalog,
+  readSolarIrradianceResource,
+};
+
+async function printBlueprintList(
+  dependencies: ResolvedBlueprintCommandDependencies,
+): Promise<void> {
+  const { blueprints } = await dependencies.readBlueprintCatalog();
   console.log(formatBlueprintTable(blueprints));
 }
 
-async function printBlueprintDetails(blueprintId: string): Promise<void> {
-  const blueprint = await findBlueprint(blueprintId);
-
-  if (!blueprint) {
-    console.error(`Blueprint "${blueprintId}" was not found.`);
-    process.exit(1);
-  }
-
+async function printBlueprintDetails(
+  blueprintId: string,
+  dependencies: ResolvedBlueprintCommandDependencies,
+): Promise<void> {
+  const { blueprint } = await dependencies.readBlueprint(blueprintId);
   console.log(formatBlueprint(blueprint));
 }
 
-async function printResourceList(): Promise<void> {
-  const resources = await listResources();
+async function printResourceList(
+  dependencies: ResolvedBlueprintCommandDependencies,
+): Promise<void> {
+  const { resources } = await dependencies.readResourceCatalog();
   console.log(formatResourceTable(resources));
 }
 
-async function printSolarStatus(): Promise<void> {
-  const solarIrradiance = await readSolarIrradiance();
+async function printSolarStatus(
+  dependencies: ResolvedBlueprintCommandDependencies,
+): Promise<void> {
+  const { solarIrradiance } = await dependencies.readSolarIrradianceResource();
   console.log(formatSolarIrradianceStatus(solarIrradiance));
 }
 
-export function registerBlueprintCommands(program: Command): void {
+export function registerBlueprintCommands(
+  program: Command,
+  dependencies: BlueprintCommandDependencies = defaultDependencies,
+): void {
+  const commandDependencies: ResolvedBlueprintCommandDependencies = {
+    ...defaultDependencies,
+    ...dependencies,
+  };
   const blueprintCommand = program
     .command("blueprint")
     .description("Manage Kepler blueprints.");
@@ -46,7 +74,7 @@ export function registerBlueprintCommands(program: Command): void {
     .command("list")
     .description("List Kepler blueprints.")
     .action(async () => {
-      await printBlueprintList();
+      await printBlueprintList(commandDependencies);
     });
 
   blueprintCommand
@@ -54,7 +82,7 @@ export function registerBlueprintCommands(program: Command): void {
     .description("Show one Kepler blueprint.")
     .argument("<blueprint-id>", "Blueprint id")
     .action(async (blueprintId: string) => {
-      await printBlueprintDetails(blueprintId);
+      await printBlueprintDetails(blueprintId, commandDependencies);
     });
 
   const resourceCommand = program
@@ -65,7 +93,7 @@ export function registerBlueprintCommands(program: Command): void {
     .command("list")
     .description("List Kepler resource catalog entries.")
     .action(async () => {
-      await printResourceList();
+      await printResourceList(commandDependencies);
     });
 
   const solarCommand = program
@@ -76,6 +104,6 @@ export function registerBlueprintCommands(program: Command): void {
     .command("status")
     .description("Show current solar irradiance from Kepler.")
     .action(async () => {
-      await printSolarStatus();
+      await printSolarStatus(commandDependencies);
     });
 }
