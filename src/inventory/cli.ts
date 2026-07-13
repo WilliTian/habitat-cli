@@ -1,9 +1,23 @@
 import { Command } from "commander";
 
-import { addInventoryResource, formatInventoryTable, listInventory } from "./index";
+import { HabitatApiError } from "../api/client";
+import { adjustInventory, readInventory } from "../api/inventory";
+import { formatInventoryResource, formatInventoryTable } from "./format";
 
-async function printInventoryList(): Promise<void> {
-  const resources = await listInventory();
+export type InventoryCommandDependencies = {
+  readInventory: typeof readInventory;
+  adjustInventory: typeof adjustInventory;
+};
+
+const defaultDependencies: InventoryCommandDependencies = {
+  readInventory,
+  adjustInventory,
+};
+
+async function printInventoryList(
+  dependencies: InventoryCommandDependencies,
+): Promise<void> {
+  const { inventory: resources } = await dependencies.readInventory();
 
   if (resources.length === 0) {
     console.log("No inventory resources found.");
@@ -13,7 +27,11 @@ async function printInventoryList(): Promise<void> {
   console.log(formatInventoryTable(resources));
 }
 
-export function registerInventoryCommands(program: Command): void {
+export function registerInventoryCommands(
+  program: Command,
+  dependencies: Partial<InventoryCommandDependencies> = {},
+): void {
+  const commandDependencies = { ...defaultDependencies, ...dependencies };
   const inventoryCommand = program
     .command("inventory")
     .description("Manage local habitat inventory.");
@@ -22,7 +40,7 @@ export function registerInventoryCommands(program: Command): void {
     .command("list")
     .description("List local habitat inventory resources.")
     .action(async () => {
-      await printInventoryList();
+      await printInventoryList(commandDependencies);
     });
 
   inventoryCommand
@@ -36,20 +54,29 @@ export function registerInventoryCommands(program: Command): void {
       quantity: string,
       options: { unit?: string },
     ) => {
-      const resource = await addInventoryResource({
-        resourceType,
-        quantity: parseQuantity(quantity),
-        unit: options.unit,
-      });
-
-      console.log(
-        [
-          `resourceType: ${resource.resourceType}`,
-          `quantity: ${resource.quantity}`,
-          `unit: ${resource.unit ?? "-"}`,
-          `updatedAt: ${resource.updatedAt}`,
-        ].join("\n"),
+      const { resource } = await runInventoryOperation(
+        () => commandDependencies.adjustInventory(
+          resourceType,
+          parseQuantity(quantity),
+          options.unit,
+        ),
       );
+      console.log(formatInventoryResource(resource));
+    });
+
+  inventoryCommand
+    .command("remove")
+    .description("Remove quantity from a local inventory resource.")
+    .argument("<resource-type>", "Resource type")
+    .argument("<quantity>", "Quantity")
+    .action(async (resourceType: string, quantity: string) => {
+      const { resource } = await runInventoryOperation(
+        () => commandDependencies.adjustInventory(
+          resourceType,
+          -parseQuantity(quantity),
+        ),
+      );
+      console.log(formatInventoryResource(resource));
     });
 }
 
@@ -61,4 +88,20 @@ function parseQuantity(value: string): number {
   }
 
   return quantity;
+}
+
+async function runInventoryOperation<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (
+      error instanceof HabitatApiError &&
+      error.backendMessage &&
+      [400, 409].includes(error.status)
+    ) {
+      throw new Error(error.backendMessage, { cause: error });
+    }
+
+    throw error;
+  }
 }

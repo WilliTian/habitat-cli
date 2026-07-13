@@ -1,6 +1,8 @@
 import { loadInventory, saveInventory } from "./state";
 import type { HabitatInventoryResource } from "./types";
 
+export { formatInventoryResource, formatInventoryTable } from "./format";
+
 type InventoryDependencies = {
   loadInventory: () => Promise<HabitatInventoryResource[]>;
 };
@@ -32,19 +34,42 @@ export type InventoryAddInput = {
   unit?: string;
 };
 
+export type InventoryAdjustmentInput = {
+  resourceType: string;
+  quantityDelta: number;
+  unit?: string;
+};
+
 export async function addInventoryResource(
   input: InventoryAddInput,
   dependencies: InventoryMutationDependencies = defaultMutationDependencies,
 ): Promise<HabitatInventoryResource> {
+  return adjustInventoryResource({
+    resourceType: input.resourceType,
+    quantityDelta: validateQuantity(input.quantity),
+    unit: input.unit,
+  }, dependencies);
+}
+
+export async function adjustInventoryResource(
+  input: InventoryAdjustmentInput,
+  dependencies: InventoryMutationDependencies = defaultMutationDependencies,
+): Promise<HabitatInventoryResource> {
   const resourceType = validateResourceType(input.resourceType);
-  const quantity = validateQuantity(input.quantity);
+  const quantityDelta = validateQuantityDelta(input.quantityDelta);
   const unit = normalizeUnit(input.unit);
   const resources = await dependencies.loadInventory();
   const existingResource = resources.find((resource) => resource.resourceType === resourceType);
   const timestamp = dependencies.now();
 
   if (existingResource) {
-    existingResource.quantity += quantity;
+    if (existingResource.quantity + quantityDelta < 0) {
+      throw new Error(
+        `Cannot remove ${Math.abs(quantityDelta)} ${resourceType}; only ${existingResource.quantity} is available.`,
+      );
+    }
+
+    existingResource.quantity += quantityDelta;
     existingResource.updatedAt = timestamp;
     if (existingResource.unit === undefined && unit !== undefined) {
       existingResource.unit = unit;
@@ -54,9 +79,15 @@ export async function addInventoryResource(
     return existingResource;
   }
 
+  if (quantityDelta < 0) {
+    throw new Error(
+      `Cannot remove ${Math.abs(quantityDelta)} ${resourceType}; only 0 is available.`,
+    );
+  }
+
   const resource: HabitatInventoryResource = {
     resourceType,
-    quantity,
+    quantity: quantityDelta,
     ...(unit !== undefined ? { unit } : {}),
     updatedAt: timestamp,
   };
@@ -81,50 +112,6 @@ export async function resetInventoryQuantities(
   return nextResources;
 }
 
-export function formatInventoryTable(resources: HabitatInventoryResource[]): string {
-  const rows = resources
-    .slice()
-    .sort((left, right) => left.resourceType.localeCompare(right.resourceType))
-    .map((resource) => ({
-      resourceType: resource.resourceType,
-      quantity: formatNumber(resource.quantity),
-      unit: resource.unit ?? "-",
-    }));
-
-  const resourceTypeWidth = Math.max(
-    "RESOURCE TYPE".length,
-    ...rows.map((row) => row.resourceType.length),
-  );
-  const quantityWidth = Math.max(
-    "QUANTITY".length,
-    ...rows.map((row) => row.quantity.length),
-  );
-
-  const lines = [
-    [
-      "RESOURCE TYPE".padEnd(resourceTypeWidth),
-      "QUANTITY".padEnd(quantityWidth),
-      "UNIT",
-    ].join("   "),
-  ];
-
-  for (const row of rows) {
-    lines.push(
-      [
-        row.resourceType.padEnd(resourceTypeWidth),
-        row.quantity.padEnd(quantityWidth),
-        row.unit,
-      ].join("   "),
-    );
-  }
-
-  return lines.join("\n");
-}
-
-function formatNumber(value: number): string {
-  return Number(value.toFixed(6)).toString();
-}
-
 function validateResourceType(value: string): string {
   const trimmedValue = value.trim();
 
@@ -138,6 +125,14 @@ function validateResourceType(value: string): string {
 function validateQuantity(value: number): number {
   if (!Number.isFinite(value) || value <= 0) {
     throw new Error("quantity must be greater than 0.");
+  }
+
+  return value;
+}
+
+function validateQuantityDelta(value: number): number {
+  if (!Number.isFinite(value) || value === 0) {
+    throw new Error("quantityDelta must be a finite non-zero number.");
   }
 
   return value;

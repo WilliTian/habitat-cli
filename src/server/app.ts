@@ -17,6 +17,10 @@ import {
   registerModuleRoutes,
   type ModuleRouteDependencies,
 } from "./modules";
+import {
+  registerInventoryRoutes,
+  type InventoryRouteDependencies,
+} from "./inventory";
 
 type RequestLogger = (message: string) => void;
 
@@ -25,6 +29,7 @@ export type BackendAppDependencies = {
   catalog?: CatalogRouteDependencies;
   solar?: SolarRouteDependencies;
   modules?: ModuleRouteDependencies;
+  inventory?: InventoryRouteDependencies;
   logger?: RequestLogger;
 };
 
@@ -44,6 +49,7 @@ export function createBackendApp(
   registerCatalogRoutes(app, dependencies.catalog);
   registerSolarRoutes(app, dependencies.solar);
   registerModuleRoutes(app, dependencies.modules);
+  registerInventoryRoutes(app, dependencies.inventory);
 
   return app;
 }
