@@ -58,6 +58,7 @@ describe("api client", () => {
       }),
     ).rejects.toEqual(
       new HabitatApiError({
+        backendMessage: "No registration found.",
         message: "Habitat API request failed for /registration: No registration found.",
         path: "/registration",
         status: 404,
@@ -78,6 +79,7 @@ describe("api client", () => {
       }),
     ).rejects.toEqual(
       new HabitatApiError({
+        backendMessage: "Module not found.",
         message: "Habitat API request failed for /modules: Module not found.",
         path: "/modules",
         status: 404,

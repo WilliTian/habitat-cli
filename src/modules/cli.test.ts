@@ -1,6 +1,7 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import { Command } from "commander";
 
+import { requestHabitatApiJson } from "../api/client";
 import { registerModuleCommands } from "./cli";
 import { formatModule, formatModuleStatusUpdate, formatModuleSummary } from "./format";
 import type { HabitatModule } from "./types";
@@ -112,6 +113,25 @@ test("show propagates a missing module response", async () => {
   await expect(program.parseAsync(["module", "show", "missing"], { from: "user" })).rejects.toThrow(
     'Module "missing" was not found.',
   );
+});
+
+test("show preserves the module-not-found message from an API 404", async () => {
+  const program = new Command();
+
+  registerModuleCommands(program, {
+    readModule: (id) => requestHabitatApiJson(`/modules/${id}`, {
+      fetchImpl: async () => new Response(JSON.stringify({
+        error: {
+          code: "module_not_found",
+          message: `Module "${id}" was not found.`,
+        },
+      }), { status: 404 }),
+    }),
+  });
+
+  await expect(
+    program.parseAsync(["module", "show", "missing"], { from: "user" }),
+  ).rejects.toMatchObject({ message: 'Module "missing" was not found.' });
 });
 
 test("create sends parsed command options to the module API", async () => {

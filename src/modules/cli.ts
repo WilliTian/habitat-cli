@@ -7,6 +7,7 @@ import {
   readModules,
   updateModuleResource,
 } from "../api/modules";
+import { HabitatApiError } from "../api/client";
 import {
   formatModule,
   formatModuleSummary,
@@ -85,7 +86,7 @@ async function printModuleDetails(
   id: string,
   dependencies: ResolvedModuleCommandDependencies,
 ): Promise<void> {
-  const { module } = await dependencies.readModule(id);
+  const { module } = await runModuleOperation(() => dependencies.readModule(id));
   console.log(formatModule(module));
 }
 
@@ -114,13 +115,15 @@ export function registerModuleCommands(
     .argument("<status>", "Runtime status")
     .action(async (moduleId: string, status: string) => {
       const nextStatus = parseModuleRuntimeStatus(status);
-      const { module: currentModule } = await commandDependencies.readModule(moduleId);
-      const { module } = await commandDependencies.updateModuleResource(moduleId, {
+      const { module: currentModule } = await runModuleOperation(
+        () => commandDependencies.readModule(moduleId),
+      );
+      const { module } = await runModuleOperation(() => commandDependencies.updateModuleResource(moduleId, {
         runtimeAttributes: {
           ...currentModule.runtimeAttributes,
           status: nextStatus,
         },
-      });
+      }));
       console.log(formatModuleStatusUpdate({
         module,
         status: nextStatus,
@@ -158,13 +161,13 @@ export function registerModuleCommands(
       capability: string[];
       runtimeAttribute: string[];
     }) => {
-      const { module } = await commandDependencies.createModuleResource({
+      const { module } = await runModuleOperation(() => commandDependencies.createModuleResource({
         blueprintId: options.blueprintId,
         displayName: options.name,
         connectedTo: options.connectedTo,
         capabilities: options.capability,
         runtimeAttributes: parseRuntimeAttributes(options.runtimeAttribute),
-      });
+      }));
 
       console.log(formatModule(module));
     });
@@ -185,7 +188,7 @@ export function registerModuleCommands(
       capability: string[];
       runtimeAttribute: string[];
     }) => {
-      const { module } = await commandDependencies.updateModuleResource(id, {
+      const { module } = await runModuleOperation(() => commandDependencies.updateModuleResource(id, {
         blueprintId: options.blueprintId,
         displayName: options.name,
         connectedTo: options.connectedTo.length > 0 ? options.connectedTo : undefined,
@@ -194,7 +197,7 @@ export function registerModuleCommands(
           options.runtimeAttribute.length > 0
             ? parseRuntimeAttributes(options.runtimeAttribute)
             : undefined,
-      });
+      }));
 
       console.log(formatModule(module));
     });
@@ -204,7 +207,9 @@ export function registerModuleCommands(
     .description("Delete a local habitat module.")
     .argument("<id>", "Module id")
     .action(async (id: string) => {
-      const { module } = await commandDependencies.deleteModuleResource(id);
+      const { module } = await runModuleOperation(
+        () => commandDependencies.deleteModuleResource(id),
+      );
       console.log(`Deleted module "${module.id}".`);
     });
 }
@@ -217,4 +222,20 @@ function parseModuleRuntimeStatus(status: string): ModuleRuntimeStatus {
   }
 
   throw new Error("Status must be one of: offline, idle, online, active, damaged.");
+}
+
+async function runModuleOperation<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (
+      error instanceof HabitatApiError &&
+      error.backendMessage &&
+      [400, 404, 409].includes(error.status)
+    ) {
+      throw new Error(error.backendMessage, { cause: error });
+    }
+
+    throw error;
+  }
 }

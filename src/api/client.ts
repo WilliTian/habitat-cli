@@ -23,12 +23,19 @@ type NestedErrorResponse = {
 };
 
 export class HabitatApiError extends Error {
+  readonly backendMessage?: string;
   readonly status: number;
   readonly path: string;
 
-  constructor(input: { message: string; path: string; status: number }) {
+  constructor(input: {
+    backendMessage?: string;
+    message: string;
+    path: string;
+    status: number;
+  }) {
     super(input.message);
     this.name = "HabitatApiError";
+    this.backendMessage = input.backendMessage;
     this.status = input.status;
     this.path = input.path;
   }
@@ -103,6 +110,7 @@ async function createHabitatApiError(
     : `Habitat API request failed for ${pathLabel} with ${response.status} ${response.statusText}.`;
 
   return new HabitatApiError({
+    backendMessage: errorMessage,
     message,
     path: pathLabel,
     status: response.status,
