@@ -8,7 +8,7 @@ import {
 import {
   formatKeplerHabitat,
   formatUnregisterKeplerHabitatResult,
-} from "../kepler/index";
+} from "../kepler/format";
 
 export type RegistrationCommandDependencies = {
   createRegistration: typeof createRegistration;

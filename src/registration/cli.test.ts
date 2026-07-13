@@ -15,6 +15,13 @@ function habitatFixture(): KeplerHabitatState {
   };
 }
 
+test("imports registration formatters without loading the Kepler domain module", async () => {
+  const source = await Bun.file(new URL("./cli.ts", import.meta.url)).text();
+
+  expect(source).toContain('from "../kepler/format"');
+  expect(source).not.toContain('from "../kepler/index"');
+});
+
 test("register sends the name to the Habitat API and formats the response", async () => {
   const program = new Command();
   const logSpy = spyOn(console, "log").mockImplementation(() => {});
