@@ -10,7 +10,7 @@ function getBaseUrl(): string {
   return rawBaseUrl.replace(/\/+$/, "");
 }
 
-function getToken(): string {
+export function readKeplerApiToken(): string {
   const token =
     process.env.KEPLER_PLANET_TOKEN?.trim() ??
     process.env.KEPLER_WORLD_TOKEN?.trim() ??
@@ -25,6 +25,14 @@ function getToken(): string {
   return token;
 }
 
+export function tryReadKeplerApiToken(): string | undefined {
+  try {
+    return readKeplerApiToken();
+  } catch {
+    return undefined;
+  }
+}
+
 export async function requestKeplerJson<T>(
   path: string,
   options: {
@@ -36,7 +44,7 @@ export async function requestKeplerJson<T>(
   const response = await fetch(`${getBaseUrl()}${path}`, {
     method: options.method,
     headers: {
-      Authorization: `Bearer ${getToken()}`,
+      Authorization: `Bearer ${readKeplerApiToken()}`,
       Accept: "application/json",
       ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
     },

@@ -9,14 +9,15 @@
   },
   "scripts": {
     "start": "bun run ./src/cli.ts",
+    "server": "bun run ./src/server/index.ts",
     "check": "bun x tsc --noEmit"
   },
   "dependencies": {
-    "commander": "^14.0.0"
+    "commander": "^14.0.0",
+    "hono": "^4.12.30"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
     "typescript": "^5.9.2"
   }
 }
-
