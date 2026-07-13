@@ -57,11 +57,15 @@ async function readInventoryCollection(
 ): Promise<HabitatInventoryResource[]> {
   const body = await readJsonBody(json);
 
-  if (!isObject(body) || !Array.isArray(body.inventory) || !body.inventory.every(isObject)) {
+  if (
+    !isObject(body) ||
+    !Array.isArray(body.inventory) ||
+    !body.inventory.every(isInventoryResource)
+  ) {
     throw new BackendHttpError(
       400,
       "invalid_inventory",
-      "inventory must be an array of inventory resource objects.",
+      "inventory resources require a resourceType, a non-negative finite quantity, and an updatedAt timestamp.",
     );
   }
 
@@ -101,6 +105,20 @@ async function readJsonBody(json: Promise<unknown>): Promise<unknown> {
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isInventoryResource(value: unknown): value is HabitatInventoryResource {
+  return (
+    isObject(value) &&
+    typeof value.resourceType === "string" &&
+    value.resourceType.trim().length > 0 &&
+    typeof value.quantity === "number" &&
+    Number.isFinite(value.quantity) &&
+    value.quantity >= 0 &&
+    typeof value.updatedAt === "string" &&
+    value.updatedAt.trim().length > 0 &&
+    (value.unit === undefined || typeof value.unit === "string")
+  );
 }
 
 function translateInventoryError(error: unknown): Error {

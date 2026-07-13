@@ -101,4 +101,22 @@ describe("inventory routes", () => {
     expect(overdraw.status).toBe(409);
     expect(invalid.status).toBe(400);
   });
+
+  test("PUT /inventory rejects resources that violate inventory invariants", async () => {
+    const saved: HabitatInventoryResource[][] = [];
+    const app = createBackendApp({
+      logger: () => {},
+      inventory: dependencies({ saveInventory: async (value) => { saved.push(value); } }),
+    });
+
+    const response = await app.request(
+      "/inventory",
+      jsonRequest("PUT", {
+        inventory: [{ ...resource, resourceType: " ", quantity: -1 }],
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(saved).toHaveLength(0);
+  });
 });
