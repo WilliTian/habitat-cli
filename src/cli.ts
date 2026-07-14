@@ -6,6 +6,7 @@ import { registerModuleCommands } from "./modules/cli";
 import { registerRegistrationCommands } from "./registration/cli";
 import { registerPowerCommands } from "./status/cli";
 import { registerTickCommands } from "./ticks/cli";
+import { registerWorldCommands } from "./world/cli";
 
 const program = new Command();
 
@@ -32,6 +33,7 @@ registerBlueprintCommands(program);
 registerConstructCommands(program);
 registerTickCommands(program);
 registerPowerCommands(program);
+registerWorldCommands(program);
 
 program.parseAsync().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : "Something went wrong.";
