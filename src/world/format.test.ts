@@ -23,25 +23,38 @@ const tile: WorldScanTile = {
   },
 };
 
-test("formats one tile with every probability and quantity estimate", () => {
-  const formatted = formatSingleTileScan(tile);
+test("formats one tile with sensor strength, every probability, and quantity estimate", () => {
+  const formatted = formatSingleTileScan(tile, 60);
 
+  expect(formatted).toContain("sensorStrength: 60");
   expect(formatted).toContain("ferrite");
   expect(formatted).toContain("none: 26%");
+  expect(formatted).toContain("probabilityTotal: 100%");
   expect(formatted).toContain("estimatedKg: 120");
   expect(formatted).toContain("minimumKg: 80");
   expect(formatted).toContain("maximumKg: 160");
 });
 
 test("labels a missing single-tile quantity estimate as none", () => {
-  expect(formatSingleTileScan({ ...tile, quantityEstimate: null })).toContain(
+  expect(formatSingleTileScan({ ...tile, quantityEstimate: null }, 60)).toContain(
     "quantityEstimate: none",
   );
 });
 
-test("formats a multi-tile summary table", () => {
-  const formatted = formatScanSummary([tile, { ...tile, x: 4, distanceTiles: 1 }]);
+test("suppresses a quantity estimate when none is the top candidate", () => {
+  const formatted = formatSingleTileScan({
+    ...tile,
+    topCandidate: { resourceType: null, probabilityPct: 74 },
+  }, 60);
 
+  expect(formatted).toContain("quantityEstimate: none");
+  expect(formatted).not.toContain("estimatedKg");
+});
+
+test("formats a multi-tile summary table", () => {
+  const formatted = formatScanSummary([tile, { ...tile, x: 4, distanceTiles: 1 }], 60);
+
+  expect(formatted).toContain("sensorStrength: 60");
   expect(formatted).toContain("TOP CANDIDATE");
   expect(formatted).toContain("ESTIMATED QUANTITY");
   expect(formatted).toContain("ferrite (74%)");

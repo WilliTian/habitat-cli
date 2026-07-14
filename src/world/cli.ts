@@ -41,11 +41,11 @@ export function registerWorldCommands(
         if (tile === undefined) {
           throw new Error("Scan returned no tile for radius 0.");
         }
-        console.log(formatSingleTileScan(tile));
+        console.log(formatSingleTileScan(tile, scan.scan.sensorStrength));
         return;
       }
 
-      console.log(formatScanSummary(scan.scan.tiles));
+      console.log(formatScanSummary(scan.scan.tiles, scan.scan.sensorStrength));
     });
 }
 
