@@ -7,6 +7,7 @@ import {
 } from "../kepler/index";
 import { KeplerRequestError } from "../kepler/client";
 import { BackendHttpError } from "./errors";
+import { setHabitatApiSummary } from "./logging";
 
 export type CatalogRouteDependencies = {
   listBlueprints: typeof listBlueprints;
@@ -29,6 +30,7 @@ export function registerCatalogRoutes(
   app.get("/catalog/blueprints", async (context) => {
     try {
       const blueprints = await routeDependencies.listBlueprints();
+      setHabitatApiSummary(context, "proxied to Kepler");
       return context.json({ blueprints });
     } catch (error) {
       throw translateCatalogError(error);
@@ -49,6 +51,7 @@ export function registerCatalogRoutes(
         );
       }
 
+      setHabitatApiSummary(context, "proxied to Kepler");
       return context.json({ blueprint });
     } catch (error) {
       if (error instanceof KeplerRequestError && error.status === 404) {
@@ -67,6 +70,7 @@ export function registerCatalogRoutes(
   app.get("/catalog/resources", async (context) => {
     try {
       const resources = await routeDependencies.listResources();
+      setHabitatApiSummary(context, "proxied to Kepler");
       return context.json({ resources });
     } catch (error) {
       throw translateCatalogError(error);

@@ -14,6 +14,7 @@ import type {
   HabitatModuleUpdateInput,
 } from "../modules/types";
 import { BackendHttpError } from "./errors";
+import { setHabitatApiSummary } from "./logging";
 import { createMutationQueue } from "./mutation-queue";
 
 export type ModuleRouteDependencies = {
@@ -44,6 +45,7 @@ export function registerModuleRoutes(
   app.get("/modules", async (context) => {
     try {
       const modules = await routeDependencies.listModules();
+      setHabitatApiSummary(context, countLabel(modules.length, "module"));
       return context.json({ modules });
     } catch (error) {
       throw translateModuleError(error);
@@ -56,6 +58,7 @@ export function registerModuleRoutes(
     try {
       return await runMutation(async () => {
         await routeDependencies.saveModules(modules);
+        setHabitatApiSummary(context, `saved ${countLabel(modules.length, "module")}`);
         return context.json({ modules });
       });
     } catch (error) {
@@ -69,6 +72,7 @@ export function registerModuleRoutes(
     try {
       return await runMutation(async () => {
         const module = await routeDependencies.createModule(input);
+        setHabitatApiSummary(context, `created module ${module.id}`);
         return context.json({ module }, 201);
       });
     } catch (error) {
@@ -85,6 +89,7 @@ export function registerModuleRoutes(
         throw moduleNotFoundError(prefix);
       }
 
+      setHabitatApiSummary(context, `module ${module.id}`);
       return context.json({ module });
     } catch (error) {
       throw translateModuleError(error);
@@ -98,6 +103,7 @@ export function registerModuleRoutes(
     try {
       return await runMutation(async () => {
         const module = await routeDependencies.updateModuleByPrefix(prefix, input);
+        setHabitatApiSummary(context, `updated module ${module.id}`);
         return context.json({ module });
       });
     } catch (error) {
@@ -116,12 +122,17 @@ export function registerModuleRoutes(
         }
 
         await routeDependencies.deleteModule(module.id);
+        setHabitatApiSummary(context, `deleted module ${module.id}`);
         return context.json({ module });
       });
     } catch (error) {
       throw translateModuleError(error);
     }
   });
+}
+
+function countLabel(count: number, singular: string): string {
+  return `${count} ${singular}${count === 1 ? "" : "s"}`;
 }
 
 async function readModulesInput(json: Promise<unknown>): Promise<HabitatModule[]> {

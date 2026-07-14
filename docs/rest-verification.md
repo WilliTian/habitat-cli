@@ -142,16 +142,18 @@ Sunlight is clear right now.
 Solar irradiance: 900 W/m2
 ```
 
-The complete request portion of the isolated server log was:
+That historical run predated the final safe logging format. The equivalent current
+request portion, confirmed by the Safe Learning Logs run below, is:
 
 ```text
-Habitat API GET /registration 200
-Kepler GET /world/solar-irradiance outbound
-Kepler GET /world/solar-irradiance 200
-Habitat API GET /solar/irradiance 200
+[habitat-api] GET /registration -> not registered
+[kepler] GET /world/solar-irradiance -> 200
+[habitat-api] GET /solar/irradiance -> proxied to Kepler
 ```
 
-Because the fresh server received only the readiness curl and then the single `solar status` CLI command, the contiguous solar lines correlate that CLI command with both the Habitat API request and the backend's Kepler request. No token or response body was logged.
+The contiguous solar lines correlate the CLI command with both the Habitat API
+request and the backend's single Kepler completion line. No token or response body
+was logged.
 
 ## Shutdown Check
 
@@ -163,6 +165,60 @@ lsof -nP -iTCP:18831 -sTCP:LISTEN
 ```
 
 Both checks printed no listener.
+
+## Safe Learning Logs
+
+Automated verification completed on 2026-07-13 with Bun 1.3.14:
+
+```bash
+bun test src/kepler/client.test.ts
+bun test
+bun run check
+git diff --check
+```
+
+Observed results:
+
+- The focused Kepler client suite passed: 6 tests, 0 failures, and 18 expectations.
+- The complete suite passed: 207 tests, 0 failures, and 543 expectations across 32 files.
+- TypeScript checking and `git diff --check` both exited successfully.
+- The Kepler tests assert one `[kepler] METHOD /path -> result` line per transported request and exclude token, request-body, and non-success response-body values from emitted messages.
+
+The isolated server verification used the following commands:
+
+```bash
+HABITAT_SQLITE_PATH=/tmp/habitat-safe-logs.sqlite \
+HABITAT_API_HOST=127.0.0.1 \
+HABITAT_API_PORT=18834 \
+bun run server 2>&1 | tee /tmp/habitat-safe-logs.log
+
+HABITAT_API_BASE_URL=http://127.0.0.1:18834 bun run ./src/cli.ts module list
+HABITAT_API_BASE_URL=http://127.0.0.1:18834 bun run ./src/cli.ts solar status
+rg -n "\\[habitat-api\\]|\\[kepler\\]" /tmp/habitat-safe-logs.log
+```
+
+Observed lines:
+
+```text
+[habitat-api] GET /registration -> not registered
+[habitat-api] GET /modules -> 0 modules
+[kepler] GET /world/solar-irradiance -> 200
+[habitat-api] GET /solar/irradiance -> proxied to Kepler
+```
+
+The forbidden-marker scan used this exact command:
+
+```bash
+rg -ni "authorization|bearer|apitoken|api-token-secret|secret detail|request body|response body" /tmp/habitat-safe-logs.log
+```
+
+It printed no matches. After stopping the server, the listener check used this exact command:
+
+```bash
+lsof -nP -iTCP:18834 -sTCP:LISTEN
+```
+
+It printed no listener.
 
 ## Future Cleanup
 

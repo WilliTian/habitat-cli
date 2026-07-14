@@ -30,6 +30,29 @@ function jsonRequest(method: string, body: unknown): RequestInit {
 }
 
 describe("inventory routes", () => {
+  test("logs safe summaries for successful inventory routes", async () => {
+    const messages: string[] = [];
+    const app = createBackendApp({
+      logger: (message) => { messages.push(message); },
+      inventory: dependencies({
+        adjustInventoryResource: async () => ({ ...resource, quantity: 8 }),
+      }),
+    });
+
+    await app.request("/inventory");
+    await app.request("/inventory", jsonRequest("PUT", { inventory: [resource] }));
+    await app.request(
+      "/inventory/steel",
+      jsonRequest("PATCH", { quantityDelta: -2 }),
+    );
+
+    expect(messages).toEqual([
+      "[habitat-api] GET /inventory -> 1 resource",
+      "[habitat-api] PUT /inventory -> saved 1 resource",
+      "[habitat-api] PATCH /inventory/steel -> steel now 8",
+    ]);
+  });
+
   test("GET /inventory returns SQLite-backed inventory", async () => {
     const app = createBackendApp({ logger: () => {}, inventory: dependencies() });
 

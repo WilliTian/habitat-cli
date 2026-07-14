@@ -2,6 +2,7 @@ import type { Hono } from "hono";
 
 import { readSolarIrradiance } from "../kepler/index";
 import { BackendHttpError } from "./errors";
+import { setHabitatApiSummary } from "./logging";
 
 export type SolarRouteDependencies = {
   readSolarIrradiance: typeof readSolarIrradiance;
@@ -20,6 +21,7 @@ export function registerSolarRoutes(
   app.get("/solar/irradiance", async (context) => {
     try {
       const solarIrradiance = await routeDependencies.readSolarIrradiance();
+      setHabitatApiSummary(context, "proxied to Kepler");
       return context.json({ solarIrradiance });
     } catch (error) {
       throw translateSolarError(error);

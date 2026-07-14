@@ -44,6 +44,41 @@ function jsonRequest(method: string, body: unknown): Request {
 }
 
 describe("module routes", () => {
+  test("logs safe summaries for successful module routes", async () => {
+    const messages: string[] = [];
+    const module = moduleFixture();
+    const modules = [module];
+    const app = createBackendApp({
+      logger: (message) => { messages.push(message); },
+      modules: moduleDependencies(),
+    });
+
+    await app.request("/modules");
+    await app.request("/modules", jsonRequest("PUT", { modules }));
+    await app.request(
+      "/modules",
+      jsonRequest("POST", {
+        blueprintId: "command-module",
+        displayName: "Command Module",
+      }),
+    );
+    await app.request("/modules/module-12");
+    await app.request(
+      "/modules/module-12",
+      jsonRequest("PATCH", { displayName: "Updated Command Module" }),
+    );
+    await app.request("/modules/module-12", { method: "DELETE" });
+
+    expect(messages).toEqual([
+      "[habitat-api] GET /modules -> 1 module",
+      "[habitat-api] PUT /modules -> saved 1 module",
+      "[habitat-api] POST /modules -> created module module-12345678",
+      "[habitat-api] GET /modules/module-12 -> module module-12345678",
+      "[habitat-api] PATCH /modules/module-12 -> updated module module-12345678",
+      "[habitat-api] DELETE /modules/module-12 -> deleted module module-12345678",
+    ]);
+  });
+
   test("PUT /modules replaces SQLite-backed state", async () => {
     let saved: HabitatModule[] = [];
     const app = createBackendApp({

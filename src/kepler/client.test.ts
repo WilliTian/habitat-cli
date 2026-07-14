@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { requestKeplerJson } from "./client";
 
 describe("Kepler client", () => {
-  test("logs safe outbound and response request details", async () => {
+  test("logs a single safe successful request result", async () => {
     const messages: string[] = [];
 
     await requestKeplerJson<{ habitatUuid: string }>("/habitats/123", {
@@ -24,24 +24,24 @@ describe("Kepler client", () => {
       logger: (message) => messages.push(message),
     });
 
-    expect(messages).toEqual([
-      "Kepler GET /base/habitats/123 outbound",
-      "Kepler GET /base/habitats/123 200",
-    ]);
+    expect(messages).toEqual(["[kepler] GET /base/habitats/123 -> 200"]);
     expect(messages.join(" ")).not.toContain("secret-token");
   });
 
   test("wraps rejected transport requests without exposing request secrets", async () => {
     const messages: string[] = [];
 
+    const requestBodyValue = "secret-request-body-value";
     const request = requestKeplerJson("/habitats/123", {
-      method: "GET",
+      method: "POST",
+      body: { note: requestBodyValue },
       expectedStatus: 200,
       environment: {
         KEPLER_BASE_URL: "https://kepler.example.test",
         KEPLER_PLANET_TOKEN: "secret-token",
       },
-      fetchImpl: async () => {
+      fetchImpl: async (_input, init) => {
+        expect(init?.body).toBe(JSON.stringify({ note: requestBodyValue }));
         throw new TypeError("network failed for Bearer secret-token with request body");
       },
       logger: (message) => messages.push(message),
@@ -49,8 +49,26 @@ describe("Kepler client", () => {
 
     await expect(request).rejects.toThrow("Kepler request failed: transport error");
     await expect(request).rejects.not.toThrow("secret-token");
-    expect(messages).toEqual(["Kepler GET /habitats/123 outbound"]);
+    await expect(request).rejects.not.toThrow(requestBodyValue);
+    expect(messages).toEqual(["[kepler] POST /habitats/123 -> transport error"]);
     expect(messages.join(" ")).not.toContain("secret-token");
+    expect(messages.join(" ")).not.toContain(requestBodyValue);
+  });
+
+  test("logs only the status for non-success responses", async () => {
+    const messages: string[] = [];
+
+    const request = requestKeplerJson("/habitats/123", {
+      method: "GET",
+      expectedStatus: 200,
+      environment: { KEPLER_PLANET_TOKEN: "secret-token" },
+      fetchImpl: async () => new Response("private response body", { status: 503 }),
+      logger: (message) => messages.push(message),
+    });
+
+    await expect(request).rejects.toThrow("Kepler request failed with 503");
+    expect(messages).toEqual(["[kepler] GET /habitats/123 -> 503"]);
+    expect(messages.join(" ")).not.toContain("private response body");
   });
 
   test("preserves HTTP status failure details", async () => {

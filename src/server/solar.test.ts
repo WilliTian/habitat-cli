@@ -13,6 +13,20 @@ function solarDependencies(
 }
 
 describe("solar routes", () => {
+  test("logs a proxy summary after a successful solar call", async () => {
+    const messages: string[] = [];
+    const app = createBackendApp({
+      logger: (message) => { messages.push(message); },
+      solar: solarDependencies(),
+    });
+
+    await app.request("/solar/irradiance");
+
+    expect(messages).toEqual([
+      "[habitat-api] GET /solar/irradiance -> proxied to Kepler",
+    ]);
+  });
+
   test("GET /solar/irradiance returns the Kepler solar reading", async () => {
     const solarIrradiance = { wPerM2: 250, condition: "dust" } as const;
     const app = createBackendApp({

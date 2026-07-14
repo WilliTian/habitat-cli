@@ -36,6 +36,52 @@ function registrationDependencies(
 }
 
 describe("registration routes", () => {
+  test("logs safe summaries for successful registration routes", async () => {
+    const messages: string[] = [];
+    const app = createBackendApp({
+      logger: (message) => { messages.push(message); },
+      registration: registrationDependencies(),
+    });
+
+    await app.request("/registration");
+    await app.request("/registration", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: "Cygnus Seven" }),
+    });
+    await app.request("/status");
+    await app.request("/registration", { method: "DELETE" });
+
+    expect(messages).toEqual([
+      "[habitat-api] GET /registration -> not registered",
+      "[habitat-api] POST /registration -> registered Cygnus Seven",
+      "[habitat-api] GET /status -> status refreshed for Cygnus Seven",
+      "[habitat-api] DELETE /registration -> unregistered Cygnus Seven",
+    ]);
+  });
+
+  test("prevents registration names from forging another log line", async () => {
+    const messages: string[] = [];
+    const app = createBackendApp({
+      logger: (message) => { messages.push(message); },
+      registration: registrationDependencies({
+        registerHabitat: async ({ displayName }) => habitatFixture({ displayName }),
+      }),
+    });
+
+    await app.request("/registration", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        displayName: "Cygnus Seven\n[kepler] GET /world/solar-irradiance -> 200",
+      }),
+    });
+
+    expect(messages).toEqual([
+      "[habitat-api] POST /registration -> registered Cygnus Seven [kepler] GET /world/solar-irradiance -> 200",
+    ]);
+  });
+
   test("POST /registration registers through the backend", async () => {
     const registeredNames: string[] = [];
     const app = createBackendApp({
@@ -113,8 +159,9 @@ describe("registration routes", () => {
   });
 
   test("DELETE /registration returns a stale unregister result", async () => {
+    const messages: string[] = [];
     const app = createBackendApp({
-      logger: () => {},
+      logger: (message) => { messages.push(message); },
       registration: registrationDependencies({
         unregisterHabitat: async () => ({
           keplerHabitat: habitatFixture(),
@@ -130,6 +177,9 @@ describe("registration routes", () => {
       registration: { displayName: "Cygnus Seven" },
       remoteHabitatDeleted: false,
     });
+    expect(messages).toEqual([
+      "[habitat-api] DELETE /registration -> cleared stale registration for Cygnus Seven",
+    ]);
   });
 
   test("POST /registration rejects malformed JSON", async () => {

@@ -48,6 +48,24 @@ function catalogDependencies(
 }
 
 describe("catalog routes", () => {
+  test("logs proxy summaries after successful catalog calls", async () => {
+    const messages: string[] = [];
+    const app = createBackendApp({
+      logger: (message) => { messages.push(message); },
+      catalog: catalogDependencies(),
+    });
+
+    await app.request("/catalog/blueprints");
+    await app.request("/catalog/blueprints/small-solar-array");
+    await app.request("/catalog/resources");
+
+    expect(messages).toEqual([
+      "[habitat-api] GET /catalog/blueprints -> proxied to Kepler",
+      "[habitat-api] GET /catalog/blueprints/small-solar-array -> proxied to Kepler",
+      "[habitat-api] GET /catalog/resources -> proxied to Kepler",
+    ]);
+  });
+
   test("GET /catalog/blueprints delegates to Kepler domain data", async () => {
     const blueprints = [blueprintFixture()];
     const app = createBackendApp({

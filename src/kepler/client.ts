@@ -71,8 +71,6 @@ export async function requestKeplerJson<T>(
   const fetchImpl = options.fetchImpl ?? fetch;
   const logger = options.logger ?? console.log;
 
-  logger(`Kepler ${options.method} ${url.pathname} outbound`);
-
   const requestInit = {
     method: options.method,
     headers: {
@@ -87,13 +85,14 @@ export async function requestKeplerJson<T>(
   try {
     response = await fetchImpl(url.toString(), requestInit);
   } catch (error) {
+    logger(`[kepler] ${options.method} ${url.pathname} -> transport error`);
     throw new KeplerRequestError("Kepler request failed: transport error", {
       cause: error,
       path: url.pathname,
     });
   }
 
-  logger(`Kepler ${options.method} ${url.pathname} ${response.status}`);
+  logger(`[kepler] ${options.method} ${url.pathname} -> ${response.status}`);
 
   const responseText = await response.text();
 

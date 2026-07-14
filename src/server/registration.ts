@@ -9,6 +9,7 @@ import {
 import { loadRegistrationState } from "../kepler/state";
 import type { KeplerHabitatState } from "../kepler/types";
 import { BackendHttpError } from "./errors";
+import { setHabitatApiSummary } from "./logging";
 import type {
   RegistrationResource,
   RegistrationStateResource,
@@ -44,6 +45,10 @@ export function registerRegistrationRoutes(
 
   app.get("/registration", async (context) => {
     const registration = await routeDependencies.loadRegistrationState();
+    setHabitatApiSummary(
+      context,
+      registration ? `registered as ${registration.displayName}` : "not registered",
+    );
 
     return context.json(
       buildRegistrationResource(registration, routeDependencies.readApiToken()),
@@ -55,6 +60,7 @@ export function registerRegistrationRoutes(
 
     try {
       const registration = await routeDependencies.registerHabitat(input);
+      setHabitatApiSummary(context, `registered ${registration.displayName}`);
       return context.json<RegistrationStateResource>({ registration }, 201);
     } catch (error) {
       throw translateRegistrationError(error);
@@ -69,6 +75,7 @@ export function registerRegistrationRoutes(
         throw registrationNotFoundError();
       }
 
+      setHabitatApiSummary(context, `status refreshed for ${registration.displayName}`);
       return context.json<RegistrationStateResource>({ registration });
     } catch (error) {
       throw translateRegistrationError(error);
@@ -78,6 +85,12 @@ export function registerRegistrationRoutes(
   app.delete("/registration", async (context) => {
     try {
       const result = await routeDependencies.unregisterHabitat();
+      setHabitatApiSummary(
+        context,
+        result.remoteHabitatDeleted
+          ? `unregistered ${result.keplerHabitat.displayName}`
+          : `cleared stale registration for ${result.keplerHabitat.displayName}`,
+      );
       return context.json<UnregisterResource>({
         registration: result.keplerHabitat,
         remoteHabitatDeleted: result.remoteHabitatDeleted,

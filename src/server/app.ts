@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 
 import { backendErrorHandler } from "./errors";
+import { formatHabitatApiLog } from "./logging";
 import {
   registerRegistrationRoutes,
   type RegistrationRouteDependencies,
@@ -41,7 +42,7 @@ export function createBackendApp(
 
   app.use("*", async (context, next) => {
     await next();
-    logger(`Habitat API ${context.req.method} ${context.req.path} ${context.res.status}`);
+    logger(formatHabitatApiLog(context));
   });
   app.onError(backendErrorHandler);
 

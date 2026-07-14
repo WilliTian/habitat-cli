@@ -7,6 +7,7 @@ import {
 import { saveInventory } from "../inventory/state";
 import type { HabitatInventoryResource } from "../inventory/types";
 import { BackendHttpError } from "./errors";
+import { setHabitatApiSummary } from "./logging";
 import { createMutationQueue } from "./mutation-queue";
 
 export type InventoryRouteDependencies = {
@@ -30,6 +31,7 @@ export function registerInventoryRoutes(
 
   app.get("/inventory", async (context) => {
     const inventory = await routeDependencies.listInventory();
+    setHabitatApiSummary(context, countLabel(inventory.length, "resource"));
     return context.json({ inventory });
   });
 
@@ -37,6 +39,7 @@ export function registerInventoryRoutes(
     const inventory = await readInventoryCollection(context.req.json());
     return runMutation(async () => {
       await routeDependencies.saveInventory(inventory);
+      setHabitatApiSummary(context, `saved ${countLabel(inventory.length, "resource")}`);
       return context.json({ inventory });
     });
   });
@@ -50,12 +53,17 @@ export function registerInventoryRoutes(
           resourceType: context.req.param("resourceType"),
           ...input,
         });
+        setHabitatApiSummary(context, `${resource.resourceType} now ${resource.quantity}`);
         return context.json({ resource });
       });
     } catch (error) {
       throw translateInventoryError(error);
     }
   });
+}
+
+function countLabel(count: number, singular: string): string {
+  return `${count} ${singular}${count === 1 ? "" : "s"}`;
 }
 
 async function readInventoryCollection(
