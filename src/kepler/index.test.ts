@@ -11,6 +11,7 @@ import {
   readKeplerHabitatStatus,
   readSolarIrradiance,
   registerKeplerHabitat,
+  scanWorldResources,
   unregisterKeplerHabitat,
 } from "./index";
 import { loadRegistrationState, saveRegistrationState } from "./state";
@@ -22,6 +23,7 @@ import type {
   ProductionBlueprint,
   IndustryResource,
   SolarIrradianceResponse,
+  WorldScanResponse,
 } from "./types";
 
 function blueprintFixture(input: {
@@ -270,6 +272,37 @@ describe("solar irradiance", () => {
         },
       }),
     ).rejects.toThrow("Kepler request failed with 503: unavailable");
+  });
+});
+
+describe("world scan", () => {
+  test("scans Kepler world tiles with the saved habitat id and scan inputs", async () => {
+    const response = {
+      scan: {
+        modelVersion: "resource-probability-v2",
+        origin: { x: 2, y: -1 },
+        sensorStrength: 40,
+        radiusTiles: 1,
+        tiles: [],
+      },
+    } satisfies WorldScanResponse;
+    const requests: string[] = [];
+
+    await expect(
+      scanWorldResources(
+        { habitatId: "habitat-1", x: 2, y: -1, sensorStrength: 40, radiusTiles: 1 },
+        {
+          requestKeplerJson: async (path) => {
+            requests.push(path);
+            return response;
+          },
+        },
+      ),
+    ).resolves.toEqual(response);
+
+    expect(requests).toEqual([
+      "/world/scan?habitatId=habitat-1&x=2&y=-1&sensorStrength=40&radiusTiles=1",
+    ]);
   });
 });
 

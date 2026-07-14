@@ -92,6 +92,48 @@ export type SolarIrradianceResponse = {
   solarIrradiance: SolarIrradianceReading;
 };
 
+export type WorldScanInput = {
+  habitatId: string;
+  x: number;
+  y: number;
+  sensorStrength: number;
+  radiusTiles: number;
+};
+
+export type WorldScanProbability = {
+  resourceType: string | null;
+  probabilityPct: number;
+};
+
+export type WorldScanQuantityEstimate = {
+  resourceType: string;
+  unit: "kg";
+  estimatedKg: number;
+  minimumKg: number;
+  maximumKg: number;
+  exact: boolean;
+};
+
+export type WorldScanTile = {
+  x: number;
+  y: number;
+  terrain: "flat";
+  distanceTiles: number;
+  probabilities: WorldScanProbability[];
+  topCandidate: WorldScanProbability;
+  quantityEstimate: WorldScanQuantityEstimate | null;
+};
+
+export type WorldScanResponse = {
+  scan: {
+    modelVersion: "resource-probability-v2";
+    origin: { x: number; y: number };
+    sensorStrength: number;
+    radiusTiles: number;
+    tiles: WorldScanTile[];
+  };
+};
+
 export type KeplerHabitatState = {
   displayName: string;
   habitatUuid: string;

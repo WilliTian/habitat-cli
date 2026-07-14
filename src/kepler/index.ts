@@ -20,6 +20,8 @@ import type {
   SolarIrradianceReading,
   SolarIrradianceResponse,
   UnregisterKeplerHabitatResult,
+  WorldScanInput,
+  WorldScanResponse,
 } from "./types";
 import { deleteModules } from "../modules/index";
 import { loadModules, replaceModulesFromStarterModules } from "../modules/index";
@@ -52,6 +54,10 @@ type ResourceCatalogDependencies = BlueprintCatalogDependencies & {
 };
 
 type SolarIrradianceDependencies = {
+  requestKeplerJson: typeof requestKeplerJson;
+};
+
+type WorldScanDependencies = {
   requestKeplerJson: typeof requestKeplerJson;
 };
 
@@ -93,6 +99,10 @@ const defaultSolarIrradianceDependencies: SolarIrradianceDependencies = {
   requestKeplerJson,
 };
 
+const defaultWorldScanDependencies: WorldScanDependencies = {
+  requestKeplerJson,
+};
+
 const defaultReadKeplerHabitatStatusDependencies: ReadKeplerHabitatStatusDependencies = {
   loadRegistrationState,
   requestKeplerJson,
@@ -121,6 +131,11 @@ export type {
   SolarIrradianceResponse,
   StarterModuleInstance,
   UnregisterKeplerHabitatResult,
+  WorldScanInput,
+  WorldScanProbability,
+  WorldScanQuantityEstimate,
+  WorldScanResponse,
+  WorldScanTile,
 } from "./types";
 export {
   formatBlueprint,
@@ -276,6 +291,24 @@ export async function readSolarIrradiance(
   });
 
   return response.solarIrradiance;
+}
+
+export async function scanWorldResources(
+  input: WorldScanInput,
+  dependencies: WorldScanDependencies = defaultWorldScanDependencies,
+): Promise<WorldScanResponse> {
+  const params = new URLSearchParams({
+    habitatId: input.habitatId,
+    x: String(input.x),
+    y: String(input.y),
+    sensorStrength: String(input.sensorStrength),
+    radiusTiles: String(input.radiusTiles),
+  });
+
+  return dependencies.requestKeplerJson<WorldScanResponse>(`/world/scan?${params}`, {
+    method: "GET",
+    expectedStatus: 200,
+  });
 }
 
 function isHabitatNotRegisteredError(error: unknown): boolean {
