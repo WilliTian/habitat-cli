@@ -17,6 +17,28 @@ function formatLogSummary(summary: string, status = 200): string {
 }
 
 describe("backend app", () => {
+  test("registers the world scan route", async () => {
+    const app = createBackendApp({
+      logger: () => {},
+      world: {
+        loadRegistrationState: async () => undefined,
+        scanWorldResources: async () => {
+          throw new Error("not called");
+        },
+      },
+    });
+
+    const response = await app.request("/world/scan?x=0&y=0&sensorStrength=0&radiusTiles=0");
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "registration_not_found",
+        message: "No Kepler habitat registration was found.",
+      },
+    });
+  });
+
   test("returns structured JSON for backend errors", async () => {
     const app = createBackendApp({
       registration: {

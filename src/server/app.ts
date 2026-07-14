@@ -22,6 +22,10 @@ import {
   registerInventoryRoutes,
   type InventoryRouteDependencies,
 } from "./inventory";
+import {
+  registerWorldRoutes,
+  type WorldRouteDependencies,
+} from "./world";
 
 type RequestLogger = (message: string) => void;
 
@@ -31,6 +35,7 @@ export type BackendAppDependencies = {
   solar?: SolarRouteDependencies;
   modules?: ModuleRouteDependencies;
   inventory?: InventoryRouteDependencies;
+  world?: WorldRouteDependencies;
   logger?: RequestLogger;
 };
 
@@ -51,6 +56,7 @@ export function createBackendApp(
   registerSolarRoutes(app, dependencies.solar);
   registerModuleRoutes(app, dependencies.modules);
   registerInventoryRoutes(app, dependencies.inventory);
+  registerWorldRoutes(app, dependencies.world);
 
   return app;
 }
