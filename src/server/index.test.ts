@@ -6,9 +6,9 @@ import {
 } from "./index";
 
 describe("server configuration", () => {
-  test("defaults to localhost-safe development settings", () => {
+  test("defaults to a network-accessible server on port 8787", () => {
     expect(resolveHabitatServerConfig({})).toEqual({
-      hostname: "127.0.0.1",
+      hostname: "0.0.0.0",
       port: 8787,
     });
   });

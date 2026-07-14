@@ -1,6 +1,6 @@
 import { createBackendApp } from "./app";
 
-const defaultServerHost = "127.0.0.1";
+const defaultServerHost = "0.0.0.0";
 const defaultServerPort = 8787;
 
 type ServerEnvironment = NodeJS.ProcessEnv;
