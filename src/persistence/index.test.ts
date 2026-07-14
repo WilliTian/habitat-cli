@@ -21,7 +21,7 @@ describe("persistence selection", () => {
 
     try {
       expect(resolveHabitatDatabasePath()).toBe(
-        join(previousCwd, ".habitat", "state.sqlite"),
+        join(previousCwd, "state.sqlite"),
       );
     } finally {
       process.chdir(previousCwd);

@@ -18,7 +18,7 @@ export function resolveHabitatDatabasePath(): string {
     return process.env.HABITAT_TEST_SQLITE_PATH?.trim() || "/tmp/habitat-cli-test.sqlite";
   }
 
-  return join(projectRootPath, ".habitat", "state.sqlite");
+  return join(projectRootPath, "state.sqlite");
 }
 
 export function openHabitatDatabase(path = resolveHabitatDatabasePath()): Database {
