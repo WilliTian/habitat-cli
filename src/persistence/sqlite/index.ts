@@ -6,6 +6,7 @@ import { Database } from "bun:sqlite";
 import { initialSchemaStatements, initialSchemaVersion } from "./schema";
 
 let sharedDatabase: Database | undefined;
+const registrationAlertContractMigration = "2026-07-15-registration-alert-contract";
 
 const projectRootPath = fileURLToPath(new URL("../../../", import.meta.url));
 
@@ -53,6 +54,21 @@ export function applySchema(database: Database): void {
   database
     .query("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)")
     .run(initialSchemaVersion, new Date().toISOString());
+
+  applyRegistrationAlertContractMigration(database);
+}
+
+function applyRegistrationAlertContractMigration(database: Database): void {
+  if (hasAppliedMigration(database, registrationAlertContractMigration)) {
+    return;
+  }
+
+  const columns = database.query("PRAGMA table_info(registration)").all() as Array<{ name: string }>;
+  if (!columns.some((column) => column.name === "alert_contract_json")) {
+    database.exec("ALTER TABLE registration ADD COLUMN alert_contract_json TEXT");
+  }
+
+  markMigrationApplied(database, registrationAlertContractMigration);
 }
 
 export function withTransaction<T>(database: Database, work: () => T): T {

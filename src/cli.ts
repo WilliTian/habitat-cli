@@ -7,6 +7,7 @@ import { registerRegistrationCommands } from "./registration/cli";
 import { registerPowerCommands } from "./status/cli";
 import { registerTickCommands } from "./ticks/cli";
 import { registerWorldCommands } from "./world/cli";
+import { registerHumanCommands } from "./humans/cli";
 
 const program = new Command();
 
@@ -34,6 +35,7 @@ registerConstructCommands(program);
 registerTickCommands(program);
 registerPowerCommands(program);
 registerWorldCommands(program);
+registerHumanCommands(program);
 
 program.parseAsync().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : "Something went wrong.";

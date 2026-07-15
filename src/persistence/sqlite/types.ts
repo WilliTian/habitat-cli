@@ -1,6 +1,6 @@
 import type { HabitatInventoryResource } from "../../inventory/types";
 import type { HabitatModule, ModuleRuntimeAttributes } from "../../modules/types";
-import type { KeplerHabitatState, StarterModuleInstance } from "../../kepler/types";
+import type { AlertContract, KeplerHabitatState, StarterHuman, StarterModuleInstance } from "../../kepler/types";
 
 export type RegistrationRow = {
   id: number;
@@ -15,6 +15,7 @@ export type RegistrationRow = {
   status: string | null;
   last_seen_at: string | null;
   starter_modules_json: string;
+  alert_contract_json: string | null;
 };
 
 export type ModuleRow = {
@@ -46,6 +47,12 @@ export type InventoryRow = {
   updated_at: string;
 };
 
+export type HumanRow = {
+  id: string;
+  display_name: string;
+  location_module_id: string;
+};
+
 export type RegistrationRecord = KeplerHabitatState & {
   habitat?: {
     id: string;
@@ -58,5 +65,7 @@ export type RegistrationRecord = KeplerHabitatState & {
 };
 
 export type StarterModulesJson = StarterModuleInstance[];
+export type AlertContractJson = AlertContract;
 export type RuntimeAttributesJson = ModuleRuntimeAttributes;
 export type InventoryResources = HabitatInventoryResource[];
+export type Humans = StarterHuman[];

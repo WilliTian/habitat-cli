@@ -24,6 +24,10 @@ describe("registration sqlite repository", () => {
           capabilities: ["habitat-command"],
         },
       ],
+      alertContract: {
+        schemaVersion: "1.0",
+        schema: { type: "object", properties: { severity: { enum: ["warning", "critical"] } } },
+      },
       moduleCount: 1,
       habitat: {
         id: "habitat-1",

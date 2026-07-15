@@ -26,6 +26,7 @@ import {
   registerWorldRoutes,
   type WorldRouteDependencies,
 } from "./world";
+import { registerHumanRoutes, type HumanRouteDependencies } from "./humans";
 
 type RequestLogger = (message: string) => void;
 
@@ -36,6 +37,7 @@ export type BackendAppDependencies = {
   modules?: ModuleRouteDependencies;
   inventory?: InventoryRouteDependencies;
   world?: WorldRouteDependencies;
+  humans?: HumanRouteDependencies;
   logger?: RequestLogger;
 };
 
@@ -57,6 +59,7 @@ export function createBackendApp(
   registerModuleRoutes(app, dependencies.modules);
   registerInventoryRoutes(app, dependencies.inventory);
   registerWorldRoutes(app, dependencies.world);
+  registerHumanRoutes(app, dependencies.humans);
 
   return app;
 }

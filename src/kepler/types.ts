@@ -7,6 +7,21 @@ export type StarterModuleInstance = {
   capabilities: string[];
 };
 
+export type StarterHuman = {
+  id: string;
+  displayName: string;
+  locationModuleId: string;
+};
+
+export type AlertContract = {
+  schemaVersion: string;
+  schema: Record<string, unknown>;
+};
+
+export type RegistrationContracts = {
+  alerts: AlertContract;
+};
+
 export type ProductionBlueprint = {
   id: string;
   blueprintId: string;
@@ -48,6 +63,8 @@ export type HabitatRegistrationResponse = {
   habitat?: Habitat;
   // Returned starter module instances become the initial local module state.
   starterModules: StarterModuleInstance[];
+  starterHumans: StarterHuman[];
+  contracts: RegistrationContracts;
   // Returned blueprint definitions are used to hydrate local starter modules.
   blueprints: ProductionBlueprint[];
 };
@@ -140,6 +157,7 @@ export type KeplerHabitatState = {
   habitatId: string;
   // Persist the starter module instances exactly as Kepler returns them.
   starterModules: StarterModuleInstance[];
+  alertContract?: AlertContract;
   moduleCount?: number;
   habitat?: Habitat;
   registeredAt: string;

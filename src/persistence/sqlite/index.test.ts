@@ -12,6 +12,7 @@ describe("sqlite bootstrap", () => {
       .all() as Array<{ name: string }>;
 
     expect(tables.map((row) => row.name)).toEqual([
+      "humans",
       "inventory_resources",
       "module_capabilities",
       "module_connections",

@@ -25,6 +25,7 @@ import type {
 } from "./types";
 import { deleteModules } from "../modules/index";
 import { loadModules, replaceModulesFromStarterModules } from "../modules/index";
+import { deleteHumans, replaceStarterHumans } from "../humans/index";
 
 function validateName(value: string, fieldName: string): string {
   const trimmedValue = value.trim();
@@ -39,7 +40,11 @@ function validateName(value: string, fieldName: string): string {
 type RegisterKeplerHabitatDependencies = {
   loadRegistrationState: () => Promise<KeplerHabitatState | undefined>;
   requestKeplerJson: typeof requestKeplerJson;
+  replaceStarterHumans: typeof replaceStarterHumans;
   replaceModulesFromStarterModules: typeof replaceModulesFromStarterModules;
+  deleteModules: typeof deleteModules;
+  deleteHumans: typeof deleteHumans;
+  deleteRegistrationState: typeof deleteRegistrationState;
   saveRegistrationState: typeof saveRegistrationState;
   createHabitatUuid: () => string;
   now: () => string;
@@ -73,6 +78,7 @@ type UnregisterKeplerHabitatDependencies = {
   loadRegistrationState: () => Promise<KeplerHabitatState | undefined>;
   requestKeplerJson: typeof requestKeplerJson;
   deleteModules: typeof deleteModules;
+  deleteHumans: typeof deleteHumans;
   deleteRegistrationState: typeof deleteRegistrationState;
   resetInventoryQuantities: typeof resetInventoryQuantities;
 };
@@ -80,7 +86,11 @@ type UnregisterKeplerHabitatDependencies = {
 const defaultRegisterKeplerHabitatDependencies: RegisterKeplerHabitatDependencies = {
   loadRegistrationState,
   requestKeplerJson,
+  replaceStarterHumans,
   replaceModulesFromStarterModules,
+  deleteModules,
+  deleteHumans,
+  deleteRegistrationState,
   saveRegistrationState,
   createHabitatUuid: randomUUID,
   now: () => new Date().toISOString(),
@@ -115,6 +125,7 @@ const defaultUnregisterKeplerHabitatDependencies: UnregisterKeplerHabitatDepende
   loadRegistrationState,
   requestKeplerJson,
   deleteModules,
+  deleteHumans,
   deleteRegistrationState,
   resetInventoryQuantities,
 };
@@ -175,12 +186,21 @@ export async function registerKeplerHabitat(
     habitatUuid,
     habitatId: response.habitatId,
     starterModules: response.starterModules,
+    alertContract: response.contracts.alerts,
     registeredAt: dependencies.now(),
   };
 
-  await dependencies.replaceModulesFromStarterModules(response.starterModules, response.blueprints);
-  keplerHabitat.moduleCount = response.starterModules.length;
-  await dependencies.saveRegistrationState(keplerHabitat);
+  try {
+    await dependencies.replaceModulesFromStarterModules(response.starterModules, response.blueprints);
+    await dependencies.replaceStarterHumans(response.starterHumans);
+    keplerHabitat.moduleCount = response.starterModules.length;
+    await dependencies.saveRegistrationState(keplerHabitat);
+  } catch (error) {
+    await dependencies.deleteModules();
+    await dependencies.deleteHumans();
+    await dependencies.deleteRegistrationState();
+    throw error;
+  }
   return keplerHabitat;
 }
 
@@ -238,6 +258,7 @@ export async function unregisterKeplerHabitat(
   }
 
   await dependencies.deleteModules();
+  await dependencies.deleteHumans();
   await dependencies.resetInventoryQuantities();
   await dependencies.deleteRegistrationState();
   return {

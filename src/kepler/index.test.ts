@@ -23,6 +23,7 @@ import type {
   ProductionBlueprint,
   IndustryResource,
   SolarIrradianceResponse,
+  StarterHuman,
   WorldScanResponse,
 } from "./types";
 
@@ -310,6 +311,7 @@ describe("Kepler registration", () => {
   test("hydrates starter modules from registration blueprints without persisting blueprints", async () => {
     const savedStates: unknown[] = [];
     const replaceCalls: HabitatRegistrationResponse[] = [];
+    const replaceStarterHumanCalls: StarterHuman[][] = [];
 
     const response: HabitatRegistrationResponse = {
       habitatId: "habitat-1",
@@ -333,6 +335,19 @@ describe("Kepler registration", () => {
           capabilities: ["habitat-command"],
         },
       ],
+      starterHumans: [
+        {
+          id: "human-1",
+          displayName: "Alex Rivera",
+          locationModuleId: "habitat_1_command_module_1",
+        },
+      ],
+      contracts: {
+        alerts: {
+          schemaVersion: "1.0",
+          schema: { type: "object", required: ["id", "severity"] },
+        },
+      },
       blueprints: [
         {
           ...blueprintFixture({ blueprintId: "command-module", displayName: "Command Module" }),
@@ -352,6 +367,9 @@ describe("Kepler registration", () => {
           replaceCalls.push({ habitatId: "habitat-1", starterModules, blueprints });
           return [];
         },
+        replaceStarterHumans: async (starterHumans) => {
+          replaceStarterHumanCalls.push(starterHumans);
+        },
         saveRegistrationState: async (keplerHabitat) => {
           savedStates.push(keplerHabitat);
         },
@@ -367,12 +385,16 @@ describe("Kepler registration", () => {
         blueprints: response.blueprints,
       },
     ]);
+    expect(replaceStarterHumanCalls).toEqual([
+      response.starterHumans,
+    ]);
     expect(savedStates).toEqual([
       {
         displayName: "Habitat One (Server)",
         habitatUuid: "uuid-1",
         habitatId: "habitat-1",
         starterModules: response.starterModules,
+        alertContract: response.contracts.alerts,
         registeredAt: "2026-07-08T00:00:00.000Z",
         moduleCount: 1,
       },
@@ -412,6 +434,10 @@ describe("Kepler registration", () => {
         habitatUuid: "uuid-1",
         habitatId: "habitat-1",
         starterModules: [],
+        alertContract: {
+          schemaVersion: "1.0",
+          schema: { type: "object", required: ["id", "severity"] },
+        },
         registeredAt: "2026-07-08T00:00:00.000Z",
       }),
       requestKeplerJson: async () => ({
@@ -438,6 +464,10 @@ describe("Kepler registration", () => {
         habitatUuid: "uuid-1",
         habitatId: "habitat-1",
         starterModules: [],
+        alertContract: {
+          schemaVersion: "1.0",
+          schema: { type: "object", required: ["id", "severity"] },
+        },
         registeredAt: "2026-07-08T00:00:00.000Z",
         habitat: {
           id: "habitat-1",
@@ -455,6 +485,7 @@ describe("Kepler registration", () => {
 
   test("unregister clears stale local registration when Kepler reports habitat_not_registered", async () => {
     const deleted: string[] = [];
+    const deletedHumans: string[] = [];
     const resetInventoryCalls: string[] = [];
 
     const result = await unregisterKeplerHabitat({
@@ -473,6 +504,9 @@ describe("Kepler registration", () => {
       deleteModules: async () => {
         deleted.push("modules");
       },
+      deleteHumans: async () => {
+        deletedHumans.push("humans");
+      },
       deleteRegistrationState: async () => {
         deleted.push("registration");
       },
@@ -485,6 +519,7 @@ describe("Kepler registration", () => {
     expect(result.keplerHabitat.displayName).toBe("Habitat One");
     expect(result.remoteHabitatDeleted).toBe(false);
     expect(deleted).toEqual(["modules", "registration"]);
+    expect(deletedHumans).toEqual(["humans"]);
     expect(resetInventoryCalls).toEqual(["inventory"]);
   });
 

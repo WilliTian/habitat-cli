@@ -19,7 +19,8 @@ export function loadRegistrationStateFromSqlite(database: Database): KeplerHabit
         catalog_version,
         status,
         last_seen_at,
-        starter_modules_json
+        starter_modules_json,
+        alert_contract_json
       FROM registration
       WHERE id = 1
       `,
@@ -31,6 +32,9 @@ export function loadRegistrationStateFromSqlite(database: Database): KeplerHabit
   }
 
   const starterModules = JSON.parse(row.starter_modules_json) as KeplerHabitatState["starterModules"];
+  const alertContract = row.alert_contract_json
+    ? (JSON.parse(row.alert_contract_json) as NonNullable<KeplerHabitatState["alertContract"]>)
+    : undefined;
   const habitat = buildHabitat(row);
 
   return {
@@ -38,6 +42,7 @@ export function loadRegistrationStateFromSqlite(database: Database): KeplerHabit
     habitatUuid: row.habitat_uuid,
     habitatId: row.habitat_id,
     starterModules,
+    ...(alertContract !== undefined ? { alertContract } : {}),
     moduleCount: row.module_count ?? undefined,
     habitat,
     registeredAt: row.registered_at,
@@ -69,8 +74,9 @@ export function saveRegistrationStateToSqlite(
         catalog_version,
         status,
         last_seen_at,
-        starter_modules_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        starter_modules_json,
+        alert_contract_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
     )
     .run(
@@ -86,6 +92,7 @@ export function saveRegistrationStateToSqlite(
       habitat?.status ?? null,
       habitat?.lastSeenAt ?? null,
       JSON.stringify(keplerHabitat.starterModules),
+      keplerHabitat.alertContract === undefined ? null : JSON.stringify(keplerHabitat.alertContract),
     );
 }
 

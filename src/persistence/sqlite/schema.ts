@@ -20,7 +20,8 @@ export const initialSchemaStatements = [
     catalog_version TEXT,
     status TEXT,
     last_seen_at TEXT,
-    starter_modules_json TEXT NOT NULL
+    starter_modules_json TEXT NOT NULL,
+    alert_contract_json TEXT
   )
   `,
   `
@@ -59,6 +60,13 @@ export const initialSchemaStatements = [
     quantity REAL NOT NULL,
     unit TEXT,
     updated_at TEXT NOT NULL
+  )
+  `,
+  `
+  CREATE TABLE IF NOT EXISTS humans (
+    id TEXT PRIMARY KEY,
+    display_name TEXT NOT NULL,
+    location_module_id TEXT NOT NULL
   )
   `,
 ] as const;
