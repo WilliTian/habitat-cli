@@ -12,3 +12,13 @@ export function readHumans(
 ): Promise<HumansResource> {
   return requestHabitatApiJson<HumansResource>("/humans", options);
 }
+
+export type HumanResource = { human: StarterHuman };
+
+export function moveHuman(humanId: string, moduleId: string, options?: HabitatApiRequestOptions): Promise<HumanResource> {
+  return requestHabitatApiJson<HumanResource>(`/humans/${encodeURIComponent(humanId)}`, {
+    ...options,
+    method: "PATCH",
+    body: { locationModuleId: moduleId },
+  });
+}
