@@ -16,6 +16,7 @@ import type {
 import { BackendHttpError } from "./errors";
 import { setHabitatApiSummary } from "./logging";
 import { createMutationQueue } from "./mutation-queue";
+import { loadHumans } from "../humans/index";
 
 export type ModuleRouteDependencies = {
   listModules: typeof listModules;
@@ -24,22 +25,27 @@ export type ModuleRouteDependencies = {
   findModuleByPrefix: typeof findModuleByPrefix;
   updateModuleByPrefix: typeof updateModuleByPrefix;
   deleteModule: typeof deleteModule;
+  loadHumans?: typeof loadHumans;
 };
 
-const defaultDependencies: ModuleRouteDependencies = {
+const defaultDependencies: Required<ModuleRouteDependencies> = {
   listModules,
   saveModules,
   createModule,
   findModuleByPrefix,
   updateModuleByPrefix,
   deleteModule,
+  loadHumans,
 };
 
 export function registerModuleRoutes(
   app: Hono,
   dependencies: ModuleRouteDependencies = defaultDependencies,
 ): void {
-  const routeDependencies = { ...defaultDependencies, ...dependencies };
+  const routeDependencies: Required<ModuleRouteDependencies> = {
+    ...defaultDependencies,
+    ...dependencies,
+  };
   const runMutation = createMutationQueue();
 
   app.get("/modules", async (context) => {
@@ -119,6 +125,17 @@ export function registerModuleRoutes(
         const module = await routeDependencies.findModuleByPrefix(prefix);
         if (!module) {
           throw moduleNotFoundError(prefix);
+        }
+
+        const occupants = (await routeDependencies.loadHumans()).filter(
+          (human) => human.locationModuleId === module.id,
+        );
+        if (occupants.length > 0) {
+          throw new BackendHttpError(
+            409,
+            "module_occupied",
+            `Module "${module.id}" cannot be deleted while a human occupies it.`,
+          );
         }
 
         await routeDependencies.deleteModule(module.id);
