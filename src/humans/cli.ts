@@ -19,8 +19,14 @@ export function registerHumanCommands(
   humanCommand
     .command("list")
     .description("List registered habitat humans.")
-    .action(async () => {
+    .option("--json", "Print humans as JSON")
+    .action(async (options: { json?: boolean }) => {
       const { humans } = await commandDependencies.readHumans();
+      if (options.json) {
+        console.log(JSON.stringify({ humans }, null, 2));
+        return;
+      }
+
       console.log(formatHumanList(humans));
     });
 }
