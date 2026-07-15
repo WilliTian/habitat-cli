@@ -91,6 +91,18 @@ test("rejects non-integer scan coordinates", async () => {
   ).rejects.toThrow("x must be an integer.");
 });
 
+test("rejects unsafe integer scan coordinates", async () => {
+  const program = new Command().exitOverride();
+  registerWorldCommands(program, { scanWorld: async () => scanFixture });
+
+  await expect(
+    program.parseAsync(
+      ["scan", "--x", "9007199254740993", "--y", "-2", "--strength", "60"],
+      { from: "user" },
+    ),
+  ).rejects.toThrow("x must be a safe integer.");
+});
+
 test("rejects scan strength and radius outside their allowed ranges", async () => {
   const program = new Command().exitOverride();
   registerWorldCommands(program, { scanWorld: async () => scanFixture });

@@ -62,7 +62,12 @@ function parseIntegerOption(value: string, name: string): number {
     throw new Error(`${name} must be an integer.`);
   }
 
-  return Number(value);
+  const integer = Number(value);
+  if (!Number.isSafeInteger(integer)) {
+    throw new Error(`${name} must be a safe integer.`);
+  }
+
+  return integer;
 }
 
 function parseBoundedIntegerOption(
