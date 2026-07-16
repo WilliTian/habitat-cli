@@ -5,15 +5,18 @@ import { loadRegistrationState } from "../kepler/state";
 import type { KeplerHabitatState, WorldScanInput } from "../kepler/types";
 import { BackendHttpError } from "./errors";
 import { setHabitatApiSummary } from "./logging";
+import { loadEvaState } from "../eva";
 
 export type WorldRouteDependencies = {
   loadRegistrationState: () => Promise<KeplerHabitatState | undefined>;
   scanWorldResources: typeof scanWorldResources;
+  loadEvaState?: typeof loadEvaState;
 };
 
 const defaultDependencies: WorldRouteDependencies = {
   loadRegistrationState,
   scanWorldResources,
+  loadEvaState,
 };
 
 export function registerWorldRoutes(
@@ -25,6 +28,10 @@ export function registerWorldRoutes(
   app.get("/world/scan", async (context) => {
     try {
       const scanInput = readWorldScanInput(context.req.query());
+      const eva = await routeDependencies.loadEvaState!();
+      if (!eva.deployedHumanId) {
+        throw new BackendHttpError(409, "eva_human_not_deployed", "Deploy a human before scanning.");
+      }
       const registration = await routeDependencies.loadRegistrationState();
 
       if (!registration) {
@@ -37,6 +44,8 @@ export function registerWorldRoutes(
 
       const scan = await routeDependencies.scanWorldResources({
         habitatId: registration.habitatId,
+        x: eva.x,
+        y: eva.y,
         ...scanInput,
       });
       setHabitatApiSummary(context, "proxied to Kepler");

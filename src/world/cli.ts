@@ -18,15 +18,11 @@ export function registerWorldCommands(
   program
     .command("scan")
     .description("Scan nearby world resources.")
-    .requiredOption("--x <integer>", "Current x coordinate")
-    .requiredOption("--y <integer>", "Current y coordinate")
     .requiredOption("--strength <0-100>", "Effective sensor strength")
     .option("--radius <0-5>", "Scan radius", "0")
     .option("--json", "Print the complete JSON response")
     .action(async (options: ScanCommandOptions) => {
       const scan = await commandDependencies.scanWorld({
-        x: parseIntegerOption(options.x, "x"),
-        y: parseIntegerOption(options.y, "y"),
         sensorStrength: parseBoundedIntegerOption(options.strength, "strength", 0, 100),
         radiusTiles: parseBoundedIntegerOption(options.radius, "radius", 0, 5),
       });
@@ -50,8 +46,6 @@ export function registerWorldCommands(
 }
 
 type ScanCommandOptions = {
-  x: string;
-  y: string;
   strength: string;
   radius: string;
   json?: boolean;
