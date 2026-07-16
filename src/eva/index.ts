@@ -6,6 +6,12 @@ import { loadRegistrationState } from "../kepler/state";
 import { requestKeplerJson } from "../kepler/client";
 import type { EvaState, WorldSector } from "./types";
 
+// Kepler currently exposes crew access and cargo-transfer rating for the
+// starter suitport, but not a kilogram capacity. This is Habitat gameplay
+// policy, not copied Kepler world state, and can be superseded by a live
+// carryingCapacityKg runtime attribute when Kepler provides one.
+export const defaultEvaCarryingCapacityKg = 20;
+
 export const loadEvaState = async (): Promise<EvaState> => loadEvaStateFromSqlite(getPersistenceDatabase());
 export const deleteEvaState = async (): Promise<void> => deleteEvaStateFromSqlite(getPersistenceDatabase());
 
@@ -15,7 +21,10 @@ export async function deployEva(humanId: string): Promise<EvaState> {
   const human = (await loadHumans()).find(h => h.id === humanId); if (!human) throw new Error(`Human "${humanId}" was not found.`);
   const module = await suitport(); if (!module || module.runtimeAttributes.status !== "active") throw new Error("The basic suitport is not active.");
   if (human.locationModuleId !== module.id) throw new Error(`Human "${humanId}" is not in the active basic suitport.`);
-  const capacity = module.runtimeAttributes.carryingCapacityKg; if (typeof capacity !== "number" || capacity < 0) throw new Error("The basic suitport has no valid carrying capacity.");
+  const liveCapacity = module.runtimeAttributes.carryingCapacityKg;
+  const capacity = typeof liveCapacity === "number" && liveCapacity >= 0
+    ? liveCapacity
+    : defaultEvaCarryingCapacityKg;
   const next = { ...state, deployedHumanId: humanId, x: 0, y: 0, carriedResources: {}, maxCarryingCapacityKg: capacity }; saveEvaStateToSqlite(getPersistenceDatabase(), next); return next;
 }
 async function sector(): Promise<WorldSector> { const reg = await loadRegistrationState(); if (!reg) throw new Error("No Kepler habitat registration was found."); const r = await requestKeplerJson<any>(`/world/sectors/current?habitatId=${encodeURIComponent(reg.habitatId)}`, { method: "GET", expectedStatus: 200 }); const s = r.sector ?? r; return { minX: s.minX ?? s.bounds?.minX, maxX: s.maxX ?? s.bounds?.maxX, minY: s.minY ?? s.bounds?.minY, maxY: s.maxY ?? s.bounds?.maxY }; }
