@@ -29,6 +29,7 @@ import {
 import { registerHumanRoutes, type HumanRouteDependencies } from "./humans";
 import { registerEvaRoutes } from "./eva";
 import { registerCollectionRoutes } from "./collect";
+import { registerAlertRoutes } from "./alerts";
 
 type RequestLogger = (message: string) => void;
 
@@ -64,6 +65,7 @@ export function createBackendApp(
   registerHumanRoutes(app, dependencies.humans);
   registerEvaRoutes(app);
   registerCollectionRoutes(app);
+  registerAlertRoutes(app);
 
   return app;
 }

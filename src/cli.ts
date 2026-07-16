@@ -10,6 +10,7 @@ import { registerWorldCommands } from "./world/cli";
 import { registerHumanCommands } from "./humans/cli";
 import { registerEvaCommands } from "./eva/cli";
 import { registerCollectionCommands } from "./collect/cli";
+import { registerAlertCommands } from "./alerts/cli";
 
 const program = new Command();
 
@@ -40,6 +41,7 @@ registerWorldCommands(program);
 registerHumanCommands(program);
 registerEvaCommands(program);
 registerCollectionCommands(program);
+registerAlertCommands(program);
 
 program.parseAsync().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : "Something went wrong.";

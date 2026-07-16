@@ -79,4 +79,11 @@ export const initialSchemaStatements = [
     max_carrying_capacity_kg REAL NOT NULL
   )
   `,
+  `
+  CREATE TABLE IF NOT EXISTS alerts (
+    id TEXT PRIMARY KEY, condition_key TEXT NOT NULL, severity TEXT NOT NULL, status TEXT NOT NULL,
+    source TEXT NOT NULL, created_at TEXT NOT NULL, last_observed_at TEXT NOT NULL,
+    occurrence_count INTEGER NOT NULL, human_id TEXT, module_id TEXT, message TEXT NOT NULL
+  )
+  `,
 ] as const;

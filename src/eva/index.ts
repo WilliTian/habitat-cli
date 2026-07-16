@@ -5,6 +5,7 @@ import { loadModules } from "../modules";
 import { loadRegistrationState } from "../kepler/state";
 import { requestKeplerJson } from "../kepler/client";
 import type { EvaState, WorldSector } from "./types";
+import { observeAlert } from "../alerts";
 import { withTransaction } from "../persistence/sqlite";
 import { loadInventoryFromSqlite } from "../persistence/sqlite/inventory-repository";
 import { loadHumansFromSqlite } from "../persistence/sqlite/humans-repository";
@@ -28,7 +29,7 @@ export async function deployEva(humanId: string): Promise<EvaState> {
   const capacity = typeof liveCapacity === "number" && liveCapacity >= 0
     ? liveCapacity
     : defaultEvaCarryingCapacityKg;
-  const next = { ...state, deployedHumanId: humanId, x: 0, y: 0, carriedResources: {}, maxCarryingCapacityKg: capacity }; saveEvaStateToSqlite(getPersistenceDatabase(), next); return next;
+  const next = { ...state, deployedHumanId: humanId, x: 0, y: 0, carriedResources: {}, maxCarryingCapacityKg: capacity }; saveEvaStateToSqlite(getPersistenceDatabase(), next); await observeAlert({ conditionKey: "human-deployed-outside", severity: "info", source: "habitat", message: `Human "${humanId}" is deployed outside the habitat.`, humanId }); return next;
 }
 async function sector(): Promise<WorldSector> { const reg = await loadRegistrationState(); if (!reg) throw new Error("No Kepler habitat registration was found."); const r = await requestKeplerJson<any>(`/world/sectors/current?habitatId=${encodeURIComponent(reg.habitatId)}`, { method: "GET", expectedStatus: 200 }); const s = r.sector ?? r; return { minX: s.minX ?? s.bounds?.minX, maxX: s.maxX ?? s.bounds?.maxX, minY: s.minY ?? s.bounds?.minY, maxY: s.maxY ?? s.bounds?.maxY }; }
 export async function moveEva(x: number, y: number): Promise<EvaState> { const state = await loadEvaState(); if (!state.deployedHumanId) throw new Error("No human is deployed."); if (!Number.isInteger(x)||!Number.isInteger(y)||Math.abs(x-state.x)+Math.abs(y-state.y)!==1) throw new Error("EVA moves must be exactly one cardinal tile."); const s=await sector(); if(x<s.minX||x>s.maxX||y<s.minY||y>s.maxY) throw new Error("Destination is outside the current Kepler sector."); const next={...state,x,y}; saveEvaStateToSqlite(getPersistenceDatabase(),next); return next; }
@@ -64,14 +65,15 @@ export async function collectEva(quantityKg: number): Promise<EvaState> {
   const state = await loadEvaState();
   if (!state.deployedHumanId) throw new Error("Deploy a human before collecting.");
   const carried = Object.values(state.carriedResources).reduce((sum, quantity) => sum + quantity, 0);
-  if (carried + quantityKg > state.maxCarryingCapacityKg) throw new Error("Collection would exceed EVA carrying capacity.");
+  if (carried + quantityKg > state.maxCarryingCapacityKg) { await observeAlert({ conditionKey: "eva-capacity", severity: "warning", source: "habitat", message: "Carried material has reached EVA capacity.", humanId: state.deployedHumanId }); throw new Error("Collection would exceed EVA carrying capacity."); }
   const registration = await loadRegistrationState();
   if (!registration) throw new Error("No Kepler habitat registration was found.");
-  const response = await requestKeplerJson<{ collection: { resourceType?: string; collectedKg?: number } }>("/world/collect", {
+  let response;
+  try { response = await requestKeplerJson<{ collection: { resourceType?: string; collectedKg?: number } }>("/world/collect", {
     method: "POST",
     expectedStatus: 200,
     body: { habitatId: registration.habitatId, x: state.x, y: state.y, quantityKg },
-  });
+  }); } catch (error) { await observeAlert({ conditionKey: `collection-failed:${state.x}:${state.y}`, severity: "warning", source: "kepler", message: "A validated collection attempt was rejected.", humanId: state.deployedHumanId }); throw error; }
   const resourceType = response.collection?.resourceType;
   const collectedKg = response.collection?.collectedKg;
   if (!resourceType || !Number.isFinite(collectedKg) || collectedKg <= 0) throw new Error("Kepler returned no collected material.");

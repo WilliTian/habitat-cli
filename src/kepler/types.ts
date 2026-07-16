@@ -17,6 +17,10 @@ export type AlertContract = {
   schemaVersion: string;
   schema: Record<string, unknown>;
 };
+export type HabitatAlert = {
+  id: string; conditionKey: string; severity: string; status: "open" | "acknowledged" | "resolved"; source: string;
+  createdAt: string; lastObservedAt: string; occurrenceCount: number; humanId?: string; moduleId?: string; message: string;
+};
 
 export type RegistrationContracts = {
   alerts: AlertContract;

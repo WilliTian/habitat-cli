@@ -1,0 +1,2 @@
+import type { Hono } from "hono"; import { acknowledgeAlert, listAlerts } from "../alerts"; import { BackendHttpError } from "./errors";
+export function registerAlertRoutes(app:Hono):void { app.get("/alerts",async c=>c.json({alerts:await listAlerts()})); app.post("/alerts/:id/acknowledge",async c=>{try{return c.json({alert:await acknowledgeAlert(c.req.param("id"))});}catch(e){throw new BackendHttpError(404,"alert_not_found",e instanceof Error?e.message:"Alert not found.",{cause:e});}}); }
