@@ -5,6 +5,9 @@ import { loadModules } from "../modules";
 import { loadRegistrationState } from "../kepler/state";
 import { requestKeplerJson } from "../kepler/client";
 import type { EvaState, WorldSector } from "./types";
+import { withTransaction } from "../persistence/sqlite";
+import { loadInventoryFromSqlite } from "../persistence/sqlite/inventory-repository";
+import { loadHumansFromSqlite } from "../persistence/sqlite/humans-repository";
 
 // Kepler currently exposes crew access and cargo-transfer rating for the
 // starter suitport, but not a kilogram capacity. This is Habitat gameplay
@@ -29,7 +32,32 @@ export async function deployEva(humanId: string): Promise<EvaState> {
 }
 async function sector(): Promise<WorldSector> { const reg = await loadRegistrationState(); if (!reg) throw new Error("No Kepler habitat registration was found."); const r = await requestKeplerJson<any>(`/world/sectors/current?habitatId=${encodeURIComponent(reg.habitatId)}`, { method: "GET", expectedStatus: 200 }); const s = r.sector ?? r; return { minX: s.minX ?? s.bounds?.minX, maxX: s.maxX ?? s.bounds?.maxX, minY: s.minY ?? s.bounds?.minY, maxY: s.maxY ?? s.bounds?.maxY }; }
 export async function moveEva(x: number, y: number): Promise<EvaState> { const state = await loadEvaState(); if (!state.deployedHumanId) throw new Error("No human is deployed."); if (!Number.isInteger(x)||!Number.isInteger(y)||Math.abs(x-state.x)+Math.abs(y-state.y)!==1) throw new Error("EVA moves must be exactly one cardinal tile."); const s=await sector(); if(x<s.minX||x>s.maxX||y<s.minY||y>s.maxY) throw new Error("Destination is outside the current Kepler sector."); const next={...state,x,y}; saveEvaStateToSqlite(getPersistenceDatabase(),next); return next; }
-export async function dockEva(): Promise<EvaState> { const state=await loadEvaState(); if(!state.deployedHumanId) throw new Error("No human is deployed."); if(state.x!==0||state.y!==0) throw new Error("EVA can dock only at (0, 0)."); const next={...state,deployedHumanId:null}; saveEvaStateToSqlite(getPersistenceDatabase(),next); return next; }
+export async function dockEva(): Promise<EvaState> {
+  const database = getPersistenceDatabase();
+  const state = loadEvaStateFromSqlite(database);
+  if (!state.deployedHumanId) throw new Error("No human is deployed.");
+  if (state.x !== 0 || state.y !== 0) throw new Error("EVA can dock only at (0, 0).");
+  const suitport = (await loadModules()).find(module => module.blueprintId === "basic-suitport");
+  if (!suitport) throw new Error("The basic suitport was not found.");
+  const humans = loadHumansFromSqlite(database);
+  const human = humans.find(candidate => candidate.id === state.deployedHumanId);
+  if (!human) throw new Error(`Human "${state.deployedHumanId}" was not found.`);
+  const inventory = loadInventoryFromSqlite(database);
+  const timestamp = new Date().toISOString();
+  withTransaction(database, () => {
+    for (const [resourceType, quantity] of Object.entries(state.carriedResources)) {
+      const existing = inventory.find(resource => resource.resourceType === resourceType);
+      if (existing) {
+        database.query("UPDATE inventory_resources SET quantity = ?, updated_at = ? WHERE resource_type = ?").run(existing.quantity + quantity, timestamp, resourceType);
+      } else {
+        database.query("INSERT INTO inventory_resources (resource_type, quantity, unit, updated_at) VALUES (?, ?, ?, ?)").run(resourceType, quantity, "kg", timestamp);
+      }
+    }
+    database.query("UPDATE humans SET location_module_id = ? WHERE id = ?").run(suitport.id, human.id);
+    database.query("UPDATE eva_state SET deployed_human_id = NULL, x = 0, y = 0, carried_resources_json = ? WHERE id = 1").run("{}");
+  });
+  return loadEvaStateFromSqlite(database);
+}
 
 export async function collectEva(quantityKg: number): Promise<EvaState> {
   if (!Number.isSafeInteger(quantityKg) || quantityKg <= 0) throw new Error("quantity-kg must be a positive whole number.");
