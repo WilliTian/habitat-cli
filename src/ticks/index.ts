@@ -7,6 +7,7 @@ import type {
   BatteryDrain,
   PowerTickInput,
   PowerTickResult,
+  PowerTickSummary,
   TickSolarInput,
 } from "./types";
 
@@ -15,6 +16,10 @@ const fullSunIrradianceWPerM2 = 900;
 const solarEfficiency = 0.5;
 
 export { resolvePowerDrawKw } from "./power";
+
+export function readPowerSummary(input: Omit<PowerTickInput, "tickCount">): PowerTickSummary {
+  return applyPowerTicks({ ...input, tickCount: 1 }).summary;
+}
 
 type PowerTickDependencies = {
   readModules: typeof readModules;
