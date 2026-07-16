@@ -1,0 +1,4 @@
+import { Command } from "commander";
+import { readEva, deployEva, moveEva, dockEva } from "../api/eva";
+export function registerEvaCommands(program: Command): void { const e=program.command("eva"); e.command("status").option("--json").action(async o=>{const r=await readEva(); console.log(o.json?JSON.stringify(r,null,2):format(r.eva));}); e.command("deploy").argument("<human-id>").action(async id=>{await deployEva(id); console.log(`Deployed human "${id}".`);}); e.command("move").argument("<x>").argument("<y>").action(async(x,y)=>{const r=await moveEva(Number(x),Number(y)); console.log(`EVA position: (${r.eva.x}, ${r.eva.y}).`);}); e.command("dock").action(async()=>{await dockEva(); console.log("EVA docked.");}); }
+function format(s:any){return [`deployedHumanId: ${s.deployedHumanId??"none"}`,`position: (${s.x}, ${s.y})`,`maxCarryingCapacityKg: ${s.maxCarryingCapacityKg}`,`carriedResources: ${JSON.stringify(s.carriedResources)}`].join("\n");}

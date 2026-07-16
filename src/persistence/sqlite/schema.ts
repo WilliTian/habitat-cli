@@ -69,4 +69,14 @@ export const initialSchemaStatements = [
     location_module_id TEXT NOT NULL
   )
   `,
+  `
+  CREATE TABLE IF NOT EXISTS eva_state (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    deployed_human_id TEXT,
+    x INTEGER NOT NULL,
+    y INTEGER NOT NULL,
+    carried_resources_json TEXT NOT NULL,
+    max_carrying_capacity_kg REAL NOT NULL
+  )
+  `,
 ] as const;

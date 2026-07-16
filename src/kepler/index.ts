@@ -26,6 +26,7 @@ import type {
 import { deleteModules } from "../modules/index";
 import { loadModules, replaceModulesFromStarterModules } from "../modules/index";
 import { deleteHumans, replaceStarterHumans } from "../humans/index";
+import { deleteEvaState } from "../eva/index";
 
 function validateName(value: string, fieldName: string): string {
   const trimmedValue = value.trim();
@@ -44,6 +45,7 @@ type RegisterKeplerHabitatDependencies = {
   replaceModulesFromStarterModules: typeof replaceModulesFromStarterModules;
   deleteModules: typeof deleteModules;
   deleteHumans: typeof deleteHumans;
+  deleteEvaState?: typeof deleteEvaState;
   deleteRegistrationState: typeof deleteRegistrationState;
   saveRegistrationState: typeof saveRegistrationState;
   createHabitatUuid: () => string;
@@ -79,6 +81,7 @@ type UnregisterKeplerHabitatDependencies = {
   requestKeplerJson: typeof requestKeplerJson;
   deleteModules: typeof deleteModules;
   deleteHumans: typeof deleteHumans;
+  deleteEvaState?: typeof deleteEvaState;
   deleteRegistrationState: typeof deleteRegistrationState;
   resetInventoryQuantities: typeof resetInventoryQuantities;
 };
@@ -90,6 +93,7 @@ const defaultRegisterKeplerHabitatDependencies: RegisterKeplerHabitatDependencie
   replaceModulesFromStarterModules,
   deleteModules,
   deleteHumans,
+  deleteEvaState,
   deleteRegistrationState,
   saveRegistrationState,
   createHabitatUuid: randomUUID,
@@ -126,6 +130,7 @@ const defaultUnregisterKeplerHabitatDependencies: UnregisterKeplerHabitatDepende
   requestKeplerJson,
   deleteModules,
   deleteHumans,
+  deleteEvaState,
   deleteRegistrationState,
   resetInventoryQuantities,
 };
@@ -198,6 +203,7 @@ export async function registerKeplerHabitat(
   } catch (error) {
     await dependencies.deleteModules();
     await dependencies.deleteHumans();
+    await dependencies.deleteEvaState?.();
     await dependencies.deleteRegistrationState();
     throw error;
   }
@@ -259,6 +265,7 @@ export async function unregisterKeplerHabitat(
 
   await dependencies.deleteModules();
   await dependencies.deleteHumans();
+  await dependencies.deleteEvaState?.();
   await dependencies.resetInventoryQuantities();
   await dependencies.deleteRegistrationState();
   return {
