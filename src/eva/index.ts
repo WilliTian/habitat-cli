@@ -30,3 +30,24 @@ export async function deployEva(humanId: string): Promise<EvaState> {
 async function sector(): Promise<WorldSector> { const reg = await loadRegistrationState(); if (!reg) throw new Error("No Kepler habitat registration was found."); const r = await requestKeplerJson<any>(`/world/sectors/current?habitatId=${encodeURIComponent(reg.habitatId)}`, { method: "GET", expectedStatus: 200 }); const s = r.sector ?? r; return { minX: s.minX ?? s.bounds?.minX, maxX: s.maxX ?? s.bounds?.maxX, minY: s.minY ?? s.bounds?.minY, maxY: s.maxY ?? s.bounds?.maxY }; }
 export async function moveEva(x: number, y: number): Promise<EvaState> { const state = await loadEvaState(); if (!state.deployedHumanId) throw new Error("No human is deployed."); if (!Number.isInteger(x)||!Number.isInteger(y)||Math.abs(x-state.x)+Math.abs(y-state.y)!==1) throw new Error("EVA moves must be exactly one cardinal tile."); const s=await sector(); if(x<s.minX||x>s.maxX||y<s.minY||y>s.maxY) throw new Error("Destination is outside the current Kepler sector."); const next={...state,x,y}; saveEvaStateToSqlite(getPersistenceDatabase(),next); return next; }
 export async function dockEva(): Promise<EvaState> { const state=await loadEvaState(); if(!state.deployedHumanId) throw new Error("No human is deployed."); if(state.x!==0||state.y!==0) throw new Error("EVA can dock only at (0, 0)."); const next={...state,deployedHumanId:null}; saveEvaStateToSqlite(getPersistenceDatabase(),next); return next; }
+
+export async function collectEva(quantityKg: number): Promise<EvaState> {
+  if (!Number.isSafeInteger(quantityKg) || quantityKg <= 0) throw new Error("quantity-kg must be a positive whole number.");
+  const state = await loadEvaState();
+  if (!state.deployedHumanId) throw new Error("Deploy a human before collecting.");
+  const carried = Object.values(state.carriedResources).reduce((sum, quantity) => sum + quantity, 0);
+  if (carried + quantityKg > state.maxCarryingCapacityKg) throw new Error("Collection would exceed EVA carrying capacity.");
+  const registration = await loadRegistrationState();
+  if (!registration) throw new Error("No Kepler habitat registration was found.");
+  const response = await requestKeplerJson<{ collection: { resourceType?: string; collectedKg?: number } }>("/world/collect", {
+    method: "POST",
+    expectedStatus: 200,
+    body: { habitatId: registration.habitatId, x: state.x, y: state.y, quantityKg },
+  });
+  const resourceType = response.collection?.resourceType;
+  const collectedKg = response.collection?.collectedKg;
+  if (!resourceType || !Number.isFinite(collectedKg) || collectedKg <= 0) throw new Error("Kepler returned no collected material.");
+  const next = { ...state, carriedResources: { ...state.carriedResources, [resourceType]: (state.carriedResources[resourceType] ?? 0) + collectedKg } };
+  saveEvaStateToSqlite(getPersistenceDatabase(), next);
+  return next;
+}

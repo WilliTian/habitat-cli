@@ -9,6 +9,7 @@ import { registerTickCommands } from "./ticks/cli";
 import { registerWorldCommands } from "./world/cli";
 import { registerHumanCommands } from "./humans/cli";
 import { registerEvaCommands } from "./eva/cli";
+import { registerCollectionCommands } from "./collect/cli";
 
 const program = new Command();
 
@@ -38,6 +39,7 @@ registerPowerCommands(program);
 registerWorldCommands(program);
 registerHumanCommands(program);
 registerEvaCommands(program);
+registerCollectionCommands(program);
 
 program.parseAsync().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : "Something went wrong.";

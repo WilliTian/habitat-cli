@@ -28,6 +28,7 @@ import {
 } from "./world";
 import { registerHumanRoutes, type HumanRouteDependencies } from "./humans";
 import { registerEvaRoutes } from "./eva";
+import { registerCollectionRoutes } from "./collect";
 
 type RequestLogger = (message: string) => void;
 
@@ -62,6 +63,7 @@ export function createBackendApp(
   registerWorldRoutes(app, dependencies.world);
   registerHumanRoutes(app, dependencies.humans);
   registerEvaRoutes(app);
+  registerCollectionRoutes(app);
 
   return app;
 }
