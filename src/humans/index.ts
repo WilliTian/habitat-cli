@@ -4,7 +4,7 @@ import {
   loadHumansFromSqlite,
   replaceHumansFromSqlite,
 } from "../persistence/sqlite/humans-repository";
-import { loadModules } from "../modules/index";
+import { findModuleByPrefix } from "../modules/index";
 
 export async function loadHumans(): Promise<StarterHuman[]> {
   return loadHumansFromSqlite(getPersistenceDatabase());
@@ -23,17 +23,16 @@ export async function moveHuman(humanId: string, moduleId: string): Promise<Star
   const human = humans.find((candidate) => candidate.id === humanId);
   if (!human) throw new Error(`Human "${humanId}" was not found.`);
 
-  const modules = await loadModules();
-  const destination = modules.find((module) => module.id === moduleId);
+  const destination = await findModuleByPrefix(moduleId);
   if (!destination) throw new Error(`Module "${moduleId}" was not found.`);
 
   const capacity = destination.runtimeAttributes.crewCapacity;
-  const occupants = humans.filter((candidate) => candidate.locationModuleId === moduleId && candidate.id !== humanId).length;
+  const occupants = humans.filter((candidate) => candidate.locationModuleId === destination.id && candidate.id !== humanId).length;
   if (typeof capacity === "number" && occupants >= capacity) {
     throw new Error(`Module "${moduleId}" has reached its crew capacity.`);
   }
 
-  human.locationModuleId = moduleId;
+  human.locationModuleId = destination.id;
   await replaceStarterHumans(humans);
   return human;
 }
