@@ -57,14 +57,10 @@ export function registerWorldRoutes(
 }
 
 function readWorldScanInput(query: Record<string, string | undefined>): Omit<WorldScanInput, "habitatId"> {
-  const x = readCanonicalInteger(query.x);
-  const y = readCanonicalInteger(query.y);
   const sensorStrength = readCanonicalInteger(query.sensorStrength);
   const radiusTiles = readCanonicalInteger(query.radiusTiles);
 
   if (
-    x === undefined ||
-    y === undefined ||
     sensorStrength === undefined ||
     radiusTiles === undefined ||
     sensorStrength < 0 ||
@@ -75,7 +71,7 @@ function readWorldScanInput(query: Record<string, string | undefined>): Omit<Wor
     throw invalidWorldScanError();
   }
 
-  return { x, y, sensorStrength, radiusTiles };
+  return { sensorStrength, radiusTiles };
 }
 
 function readCanonicalInteger(value: string | undefined): number | undefined {
@@ -91,7 +87,7 @@ function invalidWorldScanError(): BackendHttpError {
   return new BackendHttpError(
     400,
     "invalid_world_scan",
-    "x, y, sensorStrength, and radiusTiles must be valid scan values.",
+    "sensorStrength and radiusTiles must be valid scan values.",
   );
 }
 
