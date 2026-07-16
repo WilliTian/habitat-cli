@@ -31,6 +31,7 @@ import { registerEvaRoutes } from "./eva";
 import { registerCollectionRoutes } from "./collect";
 import { registerAlertRoutes } from "./alerts";
 import { registerPowerRoutes, type PowerRouteDependencies } from "./power";
+import { registerConstructionRoutes, type ConstructionRouteDependencies } from "./construct";
 
 type RequestLogger = (message: string) => void;
 
@@ -43,6 +44,7 @@ export type BackendAppDependencies = {
   world?: WorldRouteDependencies;
   humans?: HumanRouteDependencies;
   power?: PowerRouteDependencies;
+  construction?: Partial<ConstructionRouteDependencies>;
   logger?: RequestLogger;
 };
 
@@ -69,6 +71,7 @@ export function createBackendApp(
   registerCollectionRoutes(app);
   registerAlertRoutes(app);
   registerPowerRoutes(app, dependencies.power);
+  registerConstructionRoutes(app, dependencies.construction);
 
   return app;
 }
