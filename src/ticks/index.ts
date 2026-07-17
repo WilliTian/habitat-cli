@@ -66,6 +66,8 @@ export function applyPowerTicks(input: PowerTickInput): PowerTickResult {
     return total + resolveSolarGenerationKw(module, solarIrradiance);
   }, 0);
   const netPowerKw = activePowerDrawKw - solarGenerationKw;
+  const batteryEnergyStoredKwh = modules.reduce((total, module) => total + getBatteryEnergyKwh(module), 0);
+  const batteryCapacityKwh = modules.reduce((total, module) => total + (getBatteryCapacityKwh(module) ?? 0), 0);
   const grossEnergyDemandKwh = (activePowerDrawKw * tickCount) / ticksPerHour;
   const solarEnergyGeneratedKwh = (solarGenerationKw * tickCount) / ticksPerHour;
   const energyDemandKwh = Math.max(
@@ -146,6 +148,8 @@ export function applyPowerTicks(input: PowerTickInput): PowerTickResult {
       netPowerKw,
       solarIrradianceWPerM2: solarIrradiance.wPerM2,
       solarCondition: solarIrradiance.condition,
+      batteryEnergyStoredKwh,
+      batteryCapacityKwh,
       solarChargingStatus: resolveSolarChargingStatus({
         modules,
         solarIrradiance,

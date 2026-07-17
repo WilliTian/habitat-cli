@@ -37,6 +37,8 @@ export type PowerTickSummary = {
   netPowerKw: number;
   solarIrradianceWPerM2: number;
   solarCondition: SolarCondition;
+  batteryEnergyStoredKwh: number;
+  batteryCapacityKwh: number;
   solarChargingStatus: string;
   energyDemandKwh: number;
   grossEnergyDemandKwh: number;
